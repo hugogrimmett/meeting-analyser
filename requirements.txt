@@ -4,4 +4,3 @@ google-auth-oauthlib
 matplotlib
 numpy
 scipy
-seaborn

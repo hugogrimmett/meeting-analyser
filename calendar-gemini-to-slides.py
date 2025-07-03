@@ -6,7 +6,6 @@ import re
 import datetime
 import argparse
 import webbrowser
-import seaborn as sns
 import colorsys
 from collections import Counter, defaultdict
 from googleapiclient.discovery import build
@@ -15,7 +14,6 @@ from google.auth.transport.requests import Request
 from googleapiclient.http import MediaFileUpload
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import matplotlib.colors as mcolors
 import numpy as np
 from scipy.stats import t
 import warnings
