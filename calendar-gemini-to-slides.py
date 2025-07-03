@@ -15,7 +15,6 @@ from googleapiclient.http import MediaFileUpload
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-
 CREDENTIALS_FILE = 'credentials.json'
 TOKEN_FILE = 'token.pickle'
 SCOPES = [
@@ -37,7 +36,7 @@ def get_date_range_from_args_or_prompt():
     parser.add_argument('--start', type=str, default=None,
                         help="Start date (YYYY-MM-DD), default is 7 days ago.")
     parser.add_argument('--end', type=str, default=None,
-                        help="End date (YYYY-MM-DD), default is today.")
+                        help="End date (YYYY-MM-DD), default is 7 days from start.")
     args = parser.parse_args()
 
     if args.start:
@@ -50,8 +49,8 @@ def get_date_range_from_args_or_prompt():
     if args.end:
         end = parse_date(args.end)
     else:
-        end_str = input("Enter end date (YYYY-MM-DD, default today): ").strip()
-        end = parse_date(end_str) if end_str else datetime.datetime.utcnow()
+        end_str = input("Enter end date (YYYY-MM-DD, default +7 days): ").strip()
+        end = parse_date(end_str) if end_str else start + datetime.timedelta(days=7)
 
     if end <= start:
         print("End date must be after start date.")
@@ -102,25 +101,35 @@ def find_meetings_with_gemini_notes(calendar_service, time_min, time_max):
         calendarId='primary', timeMin=time_min, timeMax=time_max, maxResults=100, singleEvents=True,
         orderBy='startTime').execute()
     for event in events_result.get('items', []):
-        print("DEBUG: Event summary:", event.get('summary'))
-        print("DEBUG: Attachments:", event.get('attachments'))
-        print("DEBUG: Description:", event.get('description'))
+        # DEBUG: Print for development
+        # print("DEBUG: Event summary:", event.get('summary'))
+        # print("DEBUG: Attachments:", event.get('attachments'))
+        # print("DEBUG: Description:", event.get('description'))
         attachments = event.get('attachments', [])
+        found_gemini = False
         for att in attachments:
             if 'gemini' in att.get('title', '').lower():
                 events.append({'event': event, 'attachment': att})
+                found_gemini = True
+        # Fallback: Search description for Gemini Google Doc links
+        if not found_gemini and event.get('description'):
+            match = re.search(r'https://docs\.google\.com/document/d/([a-zA-Z0-9_-]+)', event['description'])
+            if match:
+                doc_id = match.group(1)
+                fake_attachment = {'fileId': doc_id, 'title': 'Gemini Notes (from description link)'}
+                events.append({'event': event, 'attachment': fake_attachment})
     return events
 
 def get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id):
     file_metadata = drive_service.files().get(fileId=file_id, fields="mimeType, name").execute()
-    print("DEBUG: File metadata:", file_metadata)
+    # print("DEBUG: File metadata:", file_metadata)
     if file_metadata['mimeType'] == 'application/vnd.google-apps.spreadsheet':
         pass  # Could add future Sheet logic here
     elif file_metadata['mimeType'] == 'application/vnd.google-apps.document':
         try:
             doc_content = drive_service.files().export(fileId=file_id, mimeType='text/plain').execute()
             text = doc_content.decode('utf-8') if isinstance(doc_content, bytes) else doc_content
-            print("DEBUG: Got Google Doc text, first 200 chars:", text[:200])
+            # print("DEBUG: Got Google Doc text, first 200 chars:", text[:200])
             return text
         except Exception as e:
             print("DEBUG: Error fetching Google Doc content:", e)
@@ -129,7 +138,36 @@ def get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id
         print("DEBUG: File is not a Google Sheet or Doc. MIME type is:", file_metadata['mimeType'])
     return None
 
-def analyze_transcript_and_generate_images(transcript_text, baseprefix, override_date=None):
+def collect_all_participants(events, drive_service, sheets_service):
+    participant_order = []
+    participant_set = set()
+    for evt in events:
+        event = evt['event']
+        att = evt['attachment']
+        file_id = att.get('fileId')
+        if not file_id:
+            continue
+        transcript_text = get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id)
+        if not transcript_text:
+            continue
+        lines = [l for l in transcript_text.split('\n') if l.strip()]
+        start_index = next((i for i, line in enumerate(lines) if '00:00:00' in line), None)
+        transcript_lines = lines[start_index:] if start_index is not None else lines
+        for line in transcript_lines:
+            match = re.match(r"^([A-Za-z .'-]+):(.*)$", line)
+            if match:
+                name = match.group(1).strip()
+                if name not in participant_set:
+                    participant_order.append(name)
+                    participant_set.add(name)
+    return participant_order
+
+def make_global_color_dict(participants):
+    cmap = plt.get_cmap('tab10')
+    colors = [cmap(i % 10) for i in range(len(participants))]
+    return dict(zip(participants, colors))
+
+def analyze_transcript_and_generate_images(transcript_text, baseprefix, override_date=None, color_dict=None):
     os.makedirs("analysis", exist_ok=True)
     lines = [l for l in transcript_text.split('\n') if l.strip()]
     date_ymd = override_date if override_date else datetime.datetime.now().strftime("%Y-%m-%d")
@@ -201,10 +239,11 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     participants = list(word_counts.keys())
     images = []
 
-    # Consistent colors for each participant
-    color_map = plt.get_cmap('tab10')
-    color_list = [color_map(i % 10) for i in range(len(participants))]
-    color_dict = dict(zip(participants, color_list))
+    # Use global color_dict if provided, else fallback to local mapping
+    if color_dict is None:
+        cmap = plt.get_cmap('tab10')
+        color_list = [cmap(i % 10) for i in range(len(participants))]
+        color_dict = dict(zip(participants, color_list))
 
     # Font sizes: increase all by 6pt
     base_size = 14
@@ -220,8 +259,7 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     # Bar Chart: Total Words Spoken
     plt.figure(figsize=(10, 6))
     sorted_word_counts = dict(word_counts.most_common())
-    # Assign colors in order of sorted participants
-    bar_colors = [color_dict[p] for p in sorted_word_counts.keys()]
+    bar_colors = [color_dict.get(p, (0.5,0.5,0.5,1)) for p in sorted_word_counts.keys()]
     plt.bar(sorted_word_counts.keys(), sorted_word_counts.values(), color=bar_colors)
     plt.title(meeting_title + " – Total Words Spoken")
     plt.xlabel("Participant")
@@ -236,7 +274,7 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     # Cumulative Word Count Plot
     plt.figure(figsize=(12, 6))
     for name in participants:
-        plt.plot(cumulative_word_counts[name], label=name, color=color_dict[name], linewidth=2.5)
+        plt.plot(cumulative_word_counts[name], label=name, color=color_dict.get(name, (0.5,0.5,0.5,1)), linewidth=2.5)
     plt.title(meeting_title + " – Cumulative Words Spoken")
     plt.xlabel("Turn Number")
     plt.ylabel("Cumulative Words Spoken")
@@ -250,7 +288,6 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
 
     print("Plots saved using basename:", f"{date_ymd}_{baseprefix}")
     return images, date_ymd, meeting_title
-
 
 def upload_image_to_drive_and_get_url(drive_service, image_path):
     file_metadata = {
@@ -337,6 +374,10 @@ def main():
         if not events:
             print("No events with Gemini notes attachments found.")
             return
+        # --- GLOBAL PARTICIPANT COLOR LOGIC ---
+        all_participants = collect_all_participants(events, drive_service, sheets_service)
+        color_dict = make_global_color_dict(all_participants)
+
         for evt in events:
             event = evt['event']
             att = evt['attachment']
@@ -359,7 +400,8 @@ def main():
                     date_ymd = start_datetime
             else:
                 date_ymd = datetime.datetime.now().strftime("%Y-%m-%d")
-            images, _, meeting_title = analyze_transcript_and_generate_images(transcript_text, baseprefix, override_date=date_ymd)
+            images, _, meeting_title = analyze_transcript_and_generate_images(
+                transcript_text, baseprefix, override_date=date_ymd, color_dict=color_dict)
             image_urls = [upload_image_to_drive_and_get_url(drive_service, img) for img in images]
             slide_title = f"{date_ymd} – {meeting_title}"
             if image_urls:
@@ -367,7 +409,6 @@ def main():
 
     print(f"\nAll done. View your slides at:\n{url}\n")
     webbrowser.open(url)
-
 
 if __name__ == "__main__":
     main()
