@@ -5,6 +5,8 @@ import tempfile
 import io
 import re
 import datetime
+import argparse
+import webbrowser
 from collections import Counter, defaultdict
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -20,6 +22,41 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar.readonly',
     'https://www.googleapis.com/auth/spreadsheets.readonly'
 ]
+
+def parse_date(s):
+    try:
+        return datetime.datetime.strptime(s, "%Y-%m-%d")
+    except Exception as e:
+        print(f"Error parsing date '{s}': {e}")
+        sys.exit(1)
+
+def get_date_range_from_args_or_prompt():
+    parser = argparse.ArgumentParser(description='Analyze Gemini meeting notes in calendar events.')
+    parser.add_argument('--start', type=str, default=None,
+                        help="Start date (YYYY-MM-DD), default is today.")
+    parser.add_argument('--end', type=str, default=None,
+                        help="End date (YYYY-MM-DD), default is 7 days from start.")
+    args = parser.parse_args()
+
+    if args.start:
+        start = parse_date(args.start)
+    else:
+        default_start = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+        start_str = input(f"Enter start date (YYYY-MM-DD, default {default_start.date()}): ").strip()
+        start = parse_date(start_str) if start_str else default_start
+
+    if args.end:
+        end = parse_date(args.end)
+    else:
+        end_str = input("Enter end date (YYYY-MM-DD, default +7 days): ").strip()
+        end = parse_date(end_str) if end_str else start + datetime.timedelta(days=7)
+
+    if end <= start:
+        print("End date must be after start date.")
+        sys.exit(1)
+
+    print(f"Searching events from {start.date()} to {end.date()}")
+    return start, end
 
 def check_and_help_credentials():
     if os.path.exists(CREDENTIALS_FILE):
@@ -56,14 +93,16 @@ def get_google_services():
     sheets_service = build('sheets', 'v4', credentials=creds)
     return calendar_service, drive_service, slides_service, sheets_service
 
-def find_meetings_with_gemini_notes(calendar_service):
+def find_meetings_with_gemini_notes(calendar_service, time_min, time_max):
     events = []
-    now = datetime.datetime.utcnow().isoformat() + 'Z'
-    print('Getting upcoming 50 events...')
+    print('Getting events...')
     events_result = calendar_service.events().list(
-        calendarId='primary', timeMin=now, maxResults=50, singleEvents=True,
+        calendarId='primary', timeMin=time_min, timeMax=time_max, maxResults=100, singleEvents=True,
         orderBy='startTime').execute()
     for event in events_result.get('items', []):
+        print("DEBUG: Event summary:", event.get('summary'))
+        print("DEBUG: Attachments:", event.get('attachments'))
+        print("DEBUG: Description:", event.get('description'))
         attachments = event.get('attachments', [])
         for att in attachments:
             if 'gemini' in att.get('title', '').lower():
@@ -74,8 +113,7 @@ def get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id
     file_metadata = drive_service.files().get(fileId=file_id, fields="mimeType, name").execute()
     print("DEBUG: File metadata:", file_metadata)
     if file_metadata['mimeType'] == 'application/vnd.google-apps.spreadsheet':
-        # If future Gemini notes are ever Sheets, add sheet logic here.
-        pass
+        pass  # Could add future Sheet logic here
     elif file_metadata['mimeType'] == 'application/vnd.google-apps.document':
         try:
             doc_content = drive_service.files().export(fileId=file_id, mimeType='text/plain').execute()
@@ -89,22 +127,23 @@ def get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id
         print("DEBUG: File is not a Google Sheet or Doc. MIME type is:", file_metadata['mimeType'])
     return None
 
-def analyze_transcript_and_generate_images(transcript_text, baseprefix):
+def analyze_transcript_and_generate_images(transcript_text, baseprefix, override_date=None):
     os.makedirs("analysis", exist_ok=True)
     lines = [l for l in transcript_text.split('\n') if l.strip()]
-    # Parse date and title
-    date_ymd = datetime.datetime.now().strftime("%Y-%m-%d")
+    date_ymd = override_date if override_date else datetime.datetime.now().strftime("%Y-%m-%d")
     meeting_title = baseprefix
     if lines and re.match(r'^[A-Za-z]{3} \d{1,2}, \d{4}', lines[0]):
-        date_line = lines[0].strip()
-        date_match = re.search(r'([A-Za-z]{3}) (\d{1,2}), (\d{4})', date_line)
-        if date_match:
-            month_str, day_str, year_str = date_match.groups()
-            try:
-                date_obj = datetime.datetime.strptime(f"{month_str} {day_str} {year_str}", "%b %d %Y")
-                date_ymd = date_obj.strftime("%Y-%m-%d")
-            except:
-                pass
+        # ... keep existing date/title logic, but don't overwrite date_ymd if override_date was provided
+        if not override_date:
+            date_line = lines[0].strip()
+            date_match = re.search(r'([A-Za-z]{3}) (\d{1,2}), (\d{4})', date_line)
+            if date_match:
+                month_str, day_str, year_str = date_match.groups()
+                try:
+                    date_obj = datetime.datetime.strptime(f"{month_str} {day_str} {year_str}", "%b %d %Y")
+                    date_ymd = date_obj.strftime("%Y-%m-%d")
+                except:
+                    pass
         meeting_title = lines[1].strip() if len(lines) > 1 else baseprefix
         body_lines = lines[2:]
     else:
@@ -238,11 +277,11 @@ def insert_images_to_slide(slides_service, presentation_id, image_urls, slide_ti
         }
     }]
     # Place up to 2 images side by side
-    x_start = 60
+    x_start = 0
     y = 100
     image_width = 340
     image_height = 230
-    spacing = 40
+    spacing = 20
     for idx, img_url in enumerate(image_urls):
         x = x_start + idx * (image_width + spacing)
         requests.append({
@@ -259,9 +298,11 @@ def insert_images_to_slide(slides_service, presentation_id, image_urls, slide_ti
         presentationId=presentation_id, body={"requests": requests}).execute()
     print("Inserted images side-by-side into slide", new_slide_id)
 
-
 def main():
     check_and_help_credentials()
+    start, end = get_date_range_from_args_or_prompt()
+    time_min = start.isoformat() + 'Z'
+    time_max = end.isoformat() + 'Z'
     calendar_service, drive_service, slides_service, sheets_service = get_google_services()
 
     presentation = slides_service.presentations().create(body={
@@ -272,7 +313,7 @@ def main():
     print(f"\nCreated Slides: {url}")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        events = find_meetings_with_gemini_notes(calendar_service)
+        events = find_meetings_with_gemini_notes(calendar_service, time_min, time_max)
         if not events:
             print("No events with Gemini notes attachments found.")
             return
@@ -289,18 +330,24 @@ def main():
                 print(f"No transcript found in {att.get('title')}, skipping.")
                 continue
             baseprefix = re.sub(r'\W+', '_', event.get('summary', 'meeting')).lower()
-            images, date_ymd, meeting_title = analyze_transcript_and_generate_images(transcript_text, baseprefix)
-            # Upload images and get public URLs
-            image_urls = []
-            for img in images:
-                url_img = upload_image_to_drive_and_get_url(drive_service, img)
-                image_urls.append(url_img)
-            # Use the correct slide title: date + meeting_title
+            # Get event date in YYYY-MM-DD
+            start_datetime = event.get('start', {}).get('dateTime') or event.get('start', {}).get('date')
+            if start_datetime:
+                if 'T' in start_datetime:
+                    date_ymd = start_datetime.split('T')[0]
+                else:
+                    date_ymd = start_datetime
+            else:
+                date_ymd = datetime.datetime.now().strftime("%Y-%m-%d")
+            images, _, meeting_title = analyze_transcript_and_generate_images(transcript_text, baseprefix, override_date=date_ymd)
+            image_urls = [upload_image_to_drive_and_get_url(drive_service, img) for img in images]
             slide_title = f"{date_ymd} – {meeting_title}"
             if image_urls:
                 insert_images_to_slide(slides_service, presentation_id, image_urls, slide_title)
 
-    print(f"\nAll done. View your slides at: {url}")
+    print(f"\nAll done. View your slides at:\n{url}\n")
+    webbrowser.open(url)
+
 
 if __name__ == "__main__":
     main()
