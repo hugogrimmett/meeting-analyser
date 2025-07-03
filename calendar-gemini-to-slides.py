@@ -2,7 +2,6 @@ import os
 import sys
 import pickle
 import tempfile
-import io
 import re
 import datetime
 import argparse
@@ -14,6 +13,8 @@ from google.auth.transport.requests import Request
 from googleapiclient.http import MediaFileUpload
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import numpy as np
+from scipy.stats import t
 
 CREDENTIALS_FILE = 'credentials.json'
 TOKEN_FILE = 'token.pickle'
@@ -101,10 +102,6 @@ def find_meetings_with_gemini_notes(calendar_service, time_min, time_max):
         calendarId='primary', timeMin=time_min, timeMax=time_max, maxResults=100, singleEvents=True,
         orderBy='startTime').execute()
     for event in events_result.get('items', []):
-        # DEBUG: Print for development
-        # print("DEBUG: Event summary:", event.get('summary'))
-        # print("DEBUG: Attachments:", event.get('attachments'))
-        # print("DEBUG: Description:", event.get('description'))
         attachments = event.get('attachments', [])
         found_gemini = False
         for att in attachments:
@@ -122,14 +119,12 @@ def find_meetings_with_gemini_notes(calendar_service, time_min, time_max):
 
 def get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id):
     file_metadata = drive_service.files().get(fileId=file_id, fields="mimeType, name").execute()
-    # print("DEBUG: File metadata:", file_metadata)
     if file_metadata['mimeType'] == 'application/vnd.google-apps.spreadsheet':
         pass  # Could add future Sheet logic here
     elif file_metadata['mimeType'] == 'application/vnd.google-apps.document':
         try:
             doc_content = drive_service.files().export(fileId=file_id, mimeType='text/plain').execute()
             text = doc_content.decode('utf-8') if isinstance(doc_content, bytes) else doc_content
-            # print("DEBUG: Got Google Doc text, first 200 chars:", text[:200])
             return text
         except Exception as e:
             print("DEBUG: Error fetching Google Doc content:", e)
@@ -152,7 +147,7 @@ def collect_all_participants(events, drive_service, sheets_service):
             continue
         lines = [l for l in transcript_text.split('\n') if l.strip()]
         start_index = next((i for i, line in enumerate(lines) if '00:00:00' in line), None)
-        transcript_lines = lines[start_index:] if start_index is not None else lines
+        transcript_lines = lines[start_index+1:] if start_index is not None else lines
         for line in transcript_lines:
             match = re.match(r"^([A-Za-z .'-]+):(.*)$", line)
             if match:
@@ -166,6 +161,51 @@ def make_global_color_dict(participants):
     cmap = plt.get_cmap('tab10')
     colors = [cmap(i % 10) for i in range(len(participants))]
     return dict(zip(participants, colors))
+
+def parse_timestamp(s):
+    if not s: return None
+    parts = s.strip().split(':')
+    if len(parts) != 3: return None
+    try:
+        h, m, sec = [int(float(x)) for x in parts]
+        return h * 3600 + m * 60 + sec
+    except Exception:
+        return None
+
+def per_participant_wpm(transcript_lines):
+    participant_times = defaultdict(list)
+    participant_words = defaultdict(list)
+    timestamp_pattern = re.compile(r"^(\d{1,2}:\d{2}:\d{2})")
+    speaker_pattern = re.compile(r"^([A-Za-z .'-]+):(.*)$")
+    current_timestamp = None
+    for line in transcript_lines:
+        line = line.strip()
+        if not line:
+            continue
+        ts_match = timestamp_pattern.match(line)
+        if ts_match:
+            current_timestamp = ts_match.group(1)
+            continue  # go to next line; this line isn't a speaker turn
+        speaker_match = speaker_pattern.match(line)
+        if speaker_match and current_timestamp:
+            name = speaker_match.group(1).strip()
+            utter = speaker_match.group(2).strip()
+            participant_times[name].append(parse_timestamp(current_timestamp))
+            participant_words[name].append(len(re.findall(r'\b\w+\b', utter)))
+    # Calculate WPM per participant for this meeting
+    wpm_dict = {}
+    for name in participant_times:
+        ts_list = [t for t in participant_times[name] if t is not None]
+        if len(ts_list) < 2 or min(ts_list) == max(ts_list):
+            continue  # skip: can't compute duration
+        first, last = min(ts_list), max(ts_list)
+        duration_min = (last - first) / 60.0
+        total_words = sum(participant_words[name])
+        wpm = total_words / duration_min if duration_min > 0 else None
+        if wpm and wpm < 1000:  # filter out wild outliers
+            wpm_dict[name] = wpm
+    return wpm_dict
+
 
 def analyze_transcript_and_generate_images(transcript_text, baseprefix, override_date=None, color_dict=None):
     os.makedirs("analysis", exist_ok=True)
@@ -191,16 +231,19 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     # Find transcript start, skip preamble
     start_index = next((i for i, line in enumerate(body_lines) if '00:00:00' in line), None)
     if start_index is not None:
-        transcript_lines = body_lines[start_index:]
+        transcript_lines = body_lines[start_index+1:]
     else:
         transcript_lines = body_lines
 
-    # Parse transcript into speaker turns
+    # Speaker turn parsing (for charts)
     speaker_turns = []
     current_speaker = None
     current_utterance = []
 
     for line in transcript_lines:
+        line = line.strip()
+        if not line:
+            continue
         speaker_match = re.match(r"^([A-Za-z .'-]+):(.*)$", line)
         if speaker_match:
             if current_speaker is not None:
@@ -211,16 +254,11 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
             current_utterance = [speaker_match.group(2).strip()]
         else:
             if current_speaker is not None:
-                current_utterance.append(line.strip())
-
+                current_utterance.append(line)
     if current_speaker is not None and current_utterance:
         joined = ' '.join(current_utterance).strip()
         if joined:
             speaker_turns.append((current_speaker, joined))
-
-    if not speaker_turns:
-        print("No speaker turns found after 00:00:00. Skipping.")
-        return [], date_ymd, meeting_title
 
     def count_words(text):
         return len(re.findall(r'\b\w+\b', text))
@@ -228,10 +266,11 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     word_counts = Counter()
     cumulative_word_counts = defaultdict(list)
     running_totals = Counter()
-
+    total_words = 0
     for speaker, utterance in speaker_turns:
         words = count_words(utterance)
         word_counts[speaker] += words
+        total_words += words
         running_totals[speaker] += words
         for p in word_counts:
             cumulative_word_counts[p].append(running_totals[p])
@@ -239,13 +278,11 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     participants = list(word_counts.keys())
     images = []
 
-    # Use global color_dict if provided, else fallback to local mapping
     if color_dict is None:
         cmap = plt.get_cmap('tab10')
         color_list = [cmap(i % 10) for i in range(len(participants))]
         color_dict = dict(zip(participants, color_list))
 
-    # Font sizes: increase all by 6pt
     base_size = 14
     mpl.rcParams.update({
         'axes.titlesize': base_size + 6,
@@ -287,7 +324,7 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     images.append(fname2)
 
     print("Plots saved using basename:", f"{date_ymd}_{baseprefix}")
-    return images, date_ymd, meeting_title
+    return images, date_ymd, meeting_title, total_words, transcript_lines
 
 def upload_image_to_drive_and_get_url(drive_service, image_path):
     file_metadata = {
@@ -304,6 +341,48 @@ def upload_image_to_drive_and_get_url(drive_service, image_path):
     ).execute()
     public_url = f"https://drive.google.com/uc?id={file_id}"
     return public_url
+
+def insert_image_slide(slides_service, presentation_id, image_url, slide_title):
+    create_slide_req = [{
+        "createSlide": {
+            "insertionIndex": 1,  # after title
+            "slideLayoutReference": {
+                "predefinedLayout": "BLANK"
+            }
+        }
+    }]
+    slide_resp = slides_service.presentations().batchUpdate(
+        presentationId=presentation_id, body={"requests": create_slide_req}).execute()
+    new_slide_id = slide_resp['replies'][0]['createSlide']['objectId']
+    requests = [{
+        "createShape": {
+            "objectId": f"title_{new_slide_id}",
+            "shapeType": "TEXT_BOX",
+            "elementProperties": {
+                "pageObjectId": new_slide_id,
+                "size": {"height": {"magnitude": 60, "unit": "PT"}, "width": {"magnitude": 700, "unit": "PT"}},
+                "transform": {"scaleX": 1, "scaleY": 1, "translateX": 40, "translateY": 20, "unit": "PT"}
+            }
+        }
+    }, {
+        "insertText": {
+            "objectId": f"title_{new_slide_id}",
+            "insertionIndex": 0,
+            "text": slide_title
+        }
+    }, {
+        "createImage": {
+            "url": image_url,
+            "elementProperties": {
+                "pageObjectId": new_slide_id,
+                "size": {"height": {"magnitude": 340, "unit": "PT"}, "width": {"magnitude": 620, "unit": "PT"}},
+                "transform": {"scaleX": 1, "scaleY": 1, "translateX": 40, "translateY": 90, "unit": "PT"}
+            }
+        }
+    }]
+    slides_service.presentations().batchUpdate(
+        presentationId=presentation_id, body={"requests": requests}).execute()
+    print("Inserted meta-analysis WPM bar chart slide.")
 
 def insert_images_to_slide(slides_service, presentation_id, image_urls, slide_title):
     create_slide_req = [{
@@ -369,12 +448,14 @@ def main():
     url = f"https://docs.google.com/presentation/d/{presentation_id}/edit"
     print(f"\nCreated Slides: {url}")
 
+    all_participants = []
+    all_wpm_by_participant = defaultdict(list)
+
     with tempfile.TemporaryDirectory() as temp_dir:
         events = find_meetings_with_gemini_notes(calendar_service, time_min, time_max)
         if not events:
             print("No events with Gemini notes attachments found.")
             return
-        # --- GLOBAL PARTICIPANT COLOR LOGIC ---
         all_participants = collect_all_participants(events, drive_service, sheets_service)
         color_dict = make_global_color_dict(all_participants)
 
@@ -400,12 +481,49 @@ def main():
                     date_ymd = start_datetime
             else:
                 date_ymd = datetime.datetime.now().strftime("%Y-%m-%d")
-            images, _, meeting_title = analyze_transcript_and_generate_images(
+            images, _, meeting_title, total_words, transcript_lines = analyze_transcript_and_generate_images(
                 transcript_text, baseprefix, override_date=date_ymd, color_dict=color_dict)
+            # Per-participant WPM for this meeting
+            meeting_wpm = per_participant_wpm(transcript_lines)
+            for name, wpm in meeting_wpm.items():
+                all_wpm_by_participant[name].append(wpm)
             image_urls = [upload_image_to_drive_and_get_url(drive_service, img) for img in images]
             slide_title = f"{date_ymd} – {meeting_title}"
             if image_urls:
                 insert_images_to_slide(slides_service, presentation_id, image_urls, slide_title)
+
+        # Compute global per-participant WPM mean/CI and plot
+        wpm_stats = {}
+        for name, wpm_list in all_wpm_by_participant.items():
+            arr = np.array(wpm_list)
+            mean = arr.mean()
+            n = len(arr)
+            if n > 1:
+                sem = arr.std(ddof=1)/np.sqrt(n)
+                ci = t.ppf(0.975, n-1) * sem
+            else:
+                ci = 0  # Can't compute CI for n=1
+            wpm_stats[name] = (mean, ci, n)
+        # Plot and upload
+        if wpm_stats:
+            names = [k for k, (mean, ci, n) in sorted(wpm_stats.items(), key=lambda x: -x[1][0])]
+            means = [wpm_stats[k][0] for k in names]
+            cis = [wpm_stats[k][1] for k in names]
+            bar_colors = [color_dict.get(name, (0.5,0.5,0.5,1)) for name in names]
+            plt.figure(figsize=(max(7, len(names)*1.5),6))
+            plt.bar(names, means, yerr=cis, capsize=7, color=bar_colors)
+            plt.ylabel('Words Per Minute (WPM)', fontsize=18)
+            plt.xlabel('Participant', fontsize=18)
+            plt.title('Participant Words Per Minute (Mean ± 95% CI)\n(Across all meetings)', fontsize=20)
+            plt.xticks(rotation=30, fontsize=16)
+            plt.yticks(fontsize=16)
+            plt.tight_layout()
+            meta_bar_file = os.path.join("analysis", "global_participant_wpm_bar.png")
+            plt.savefig(meta_bar_file, dpi=300)
+            plt.close()
+            # Upload and insert as slide
+            meta_bar_url = upload_image_to_drive_and_get_url(drive_service, meta_bar_file)
+            insert_image_slide(slides_service, presentation_id, meta_bar_url, "Meta-Analysis: Participant Words Per Minute (WPM)")
 
     print(f"\nAll done. View your slides at:\n{url}\n")
     webbrowser.open(url)
