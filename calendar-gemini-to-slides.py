@@ -111,27 +111,65 @@ def get_google_services():
 def find_meetings_with_gemini_notes(calendar_service, time_min, time_max):
     events = []
     print('Getting events...')
-    events_result = calendar_service.events().list(
-        calendarId='primary', timeMin=time_min, timeMax=time_max, maxResults=100, singleEvents=True,
-        orderBy='startTime').execute()
-    for event in events_result.get('items', []):
-        attachments = event.get('attachments', [])
-        found_gemini = False
-        for att in attachments:
-            if 'gemini' in att.get('title', '').lower():
-                events.append({'event': event, 'attachment': att})
-                found_gemini = True
-        # Fallback: Search description for Gemini Google Doc links
-        if not found_gemini and event.get('description'):
-            match = re.search(r'https://docs\.google\.com/document/d/([a-zA-Z0-9_-]+)', event['description'])
-            if match:
-                doc_id = match.group(1)
-                fake_attachment = {'fileId': doc_id, 'title': 'Gemini Notes (from description link)'}
-                events.append({'event': event, 'attachment': fake_attachment})
+    page_token = None
+    total_fetched = 0
+    batch_num = 0
+    latest_event_time = None
+    while True:
+        batch_num += 1
+        events_result = calendar_service.events().list(
+            calendarId='primary',
+            timeMin=time_min,
+            timeMax=time_max,
+            maxResults=250,
+            singleEvents=True,
+            orderBy='startTime',
+            pageToken=page_token
+        ).execute()
+        items = events_result.get('items', [])
+        total_fetched += len(items)
+        if items:
+            earliest = items[0].get('start', {}).get('dateTime') or items[0].get('start', {}).get('date')
+            latest = items[-1].get('start', {}).get('dateTime') or items[-1].get('start', {}).get('date')
+            latest_event_time = latest
+            print(f"  Batch {batch_num}: {len(items)} events ({earliest} to {latest})")
+        else:
+            print(f"  Batch {batch_num}: No events in this batch.")
+
+        for event in items:
+            attachments = event.get('attachments', [])
+            found_gemini = False
+            for att in attachments:
+                if 'gemini' in att.get('title', '').lower():
+                    events.append({'event': event, 'attachment': att})
+                    found_gemini = True
+            # Fallback: Search description for Gemini Google Doc links
+            if not found_gemini and event.get('description'):
+                match = re.search(r'https://docs\.google\.com/document/d/([a-zA-Z0-9_-]+)', event['description'])
+                if match:
+                    doc_id = match.group(1)
+                    fake_attachment = {'fileId': doc_id, 'title': 'Gemini Notes (from description link)'}
+                    events.append({'event': event, 'attachment': fake_attachment})
+
+        page_token = events_result.get('nextPageToken')
+        if not page_token:
+            print(f"Reached end of date range after fetching {total_fetched} events. Last event date: {latest_event_time}")
+            break
+        elif len(items) == 0:
+            print(f"No more events to fetch, but received nextPageToken. Stopping.")
+            break
+        else:
+            print(f"Fetched {total_fetched} events so far, continuing with next batch...")
+
+    print(f"Found {len(events)} events with Gemini notes in the specified date range.")
     return events
 
 def get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id):
-    file_metadata = drive_service.files().get(fileId=file_id, fields="mimeType, name").execute()
+    try:
+        file_metadata = drive_service.files().get(fileId=file_id, fields="mimeType, name").execute()
+    except Exception as e:
+        print(f"  WARNING: Could not fetch file {file_id} from Drive: {e}")
+        return None
     if file_metadata['mimeType'] == 'application/vnd.google-apps.spreadsheet':
         pass  # Could add future Sheet logic here
     elif file_metadata['mimeType'] == 'application/vnd.google-apps.document':
@@ -140,10 +178,10 @@ def get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id
             text = doc_content.decode('utf-8') if isinstance(doc_content, bytes) else doc_content
             return text
         except Exception as e:
-            print("DEBUG: Error fetching Google Doc content:", e)
+            print(f"  WARNING: Error fetching Google Doc content for file {file_id}: {e}")
             return None
     else:
-        print("DEBUG: File is not a Google Sheet or Doc. MIME type is:", file_metadata['mimeType'])
+        print(f"  WARNING: File {file_id} is not a Google Sheet or Doc. MIME type is: {file_metadata['mimeType']}")
     return None
 
 def collect_all_participants(events, drive_service, sheets_service):
@@ -171,8 +209,15 @@ def collect_all_participants(events, drive_service, sheets_service):
     return participant_order
 
 def make_global_color_dict(participants):
-    cmap = plt.get_cmap('tab10')
-    colors = [cmap(i % 10) for i in range(len(participants))]
+    import matplotlib.colors as mcolors
+    n = len(participants)
+    if n <= 20:
+        cmap = plt.get_cmap('tab20')
+        colors = [cmap(i) for i in range(n)]
+    else:
+        # Generate N unique colors evenly spaced in HSV space
+        hsv = [(i / n, 0.7, 0.9) for i in range(n)]
+        colors = [mcolors.hsv_to_rgb(c) for c in hsv]
     return dict(zip(participants, colors))
 
 def parse_timestamp(s):
@@ -628,6 +673,14 @@ def main():
             if not transcript_text:
                 print(f"No transcript found in {att.get('title')}, skipping.")
                 continue
+
+            # Optional: quick pre-check—does transcript_text contain at least two timestamps?
+            timestamp_lines = [l for l in transcript_text.split('\n') if re.match(r'^\d{1,2}:\d{2}:\d{2}', l.strip())]
+            if len(timestamp_lines) < 2:
+                print(f"Transcript in {att.get('title')} is missing enough timestamps for WPM analysis, skipping meeting.")
+                continue
+
+            # Now, and ONLY now, generate images/plots and continue
             baseprefix = re.sub(r'\W+', '_', event.get('summary', 'meeting')).lower()
             # Get event date in YYYY-MM-DD
             start_datetime = event.get('start', {}).get('dateTime') or event.get('start', {}).get('date')

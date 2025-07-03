@@ -1,0 +1,1165 @@
+Jul 3, 2025
+Search agent: sprint planning - Transcript
+00:00:00
+ 
+Matthew Bostwick: All right.
+Hugo Grimmett: When are you back? M
+Matt Reeves: Uh July 14th.
+Hugo Grimmett: got it.
+Matthew Bostwick: 11 days.
+Hugo Grimmett: Um, so that this group knows I will be away for 2 and a half weeks during August.
+Matthew Bostwick: Is that on the calendar?
+Hugo Grimmett: It is on the calendar.
+Andy Maag: Where? Where you going?
+Hugo Grimmett: Netherlands.
+Andy Maag: Excellente. I'm sorry you're not getting to go somewhere farther and more exotic by airplane.
+Hugo Grimmett: Me too. I lost that argument this year.
+Matthew Bostwick: Um, okay. Uh, well, let's jump in. Hugo, do you want to Yeah.
+Hugo Grimmett: Um, well, you can cuz you you
+Matthew Bostwick: Okay.
+Hugo Grimmett: scripting
+Matthew Bostwick: So again, our sprint goal. I'm going to just delete our old sprint goal. Um is get demo get demo ready with some wow experiences. Um, we were thinking that Let me I'll put the um demo scripts uh link here in the notes for today. Um, it sounded like we were coalesing around 1, three, and four being scripts.
+ 
+ 
+00:01:41
+ 
+Matthew Bostwick: That would be good scripts. I'll share my screen.
+Andy Maag: And Matt, uh, just for cont or Matt Cohen for context, do you want to share kind of what we talked about yesterday with the like the primary goal of the demo and our goal for like the IP agreement?
+Matt Cohen: right? So our our our default contract essentially says that if we bring technology to the system to you know to the to the engagement and we add what are called generic components which are essentially things that could be used you know that aren't confidential to them and aren't uh specific to them. Then if we build more, we get to keep them. Um, and in the past, we haven't had anything to bring. But the idea here is to allow them to is it's for them to allow us to bring this technology to the engagement so that improvements that we make to it, they get a license to use. Uh, and they get a license to use the system as well, but we also retain the rights to it.
+ 
+ 
+00:02:59
+ 
+Matt Cohen: So the the goal of this demo is to convince them that using what we have already built will make it go faster, right? And they're they're very, you know, this is timesensitive. We're only going to have I mean to get to the first version of something to show is probably going to be like three sprints.
+Andy Maag: Y
+Matt Cohen: Uh,
+Andy Maag: the thing that's different than what it initially came to my head is that we're not trying to convince them to sign like an enterprise licensing agreement for X amount of dollars per year to use the software.
+Matt Cohen: right. The the agreement is simply we get to bring something that we own and they get a license to, you know, as part of the agreement and in exchange we get to keep improvements that we make to it.
+Matthew Bostwick: got it. Okay,
+Matt Cohen: And the
+Matthew Bostwick: that
+Matt Cohen: the only
+Matthew Bostwick: that's
+Matt Cohen: point of
+Matthew Bostwick: clear.
+Matt Cohen: this demo is to convince RC and others that they are much better off in terms of velocity by letting us use this thing than making us start from scratch.
+ 
+ 
+00:04:09
+ 
+Matt Cohen: In terms of velocity,
+Matt Reeves: Is there some would there be some risk if we didn't have that like like would we basically have to stop working on the search agent um
+Matt Cohen: uh,
+Matt Reeves: if
+Matt Cohen: no,
+Matt Reeves: we didn't have that agreement?
+Matt Cohen: we just couldn't charge them for it.
+Matt Reeves: Okay.
+Matt Cohen: In other words, like if if if we did work outside of we we' we'd have to be sure to to make it clear what we were working on and not to charge them for time or that we spent working on something that they didn't get. But we're, you know, we're we're consultants. We're not employees. So there's no there's no agreement that says everything we work on belongs to them. It's only everything we work on under the terms of of this engagement belongs to them.
+Andy Maag: So effectively the that case would be we would effectively have to fork what we have now.
+Matt Cohen: Yeah.
+Andy Maag: everything built for them under that would be built for them, but we couldn't re we'd have to rebuild that or and potentially, you know, it's a a gray area if if you just rebuilt it if that's
+ 
+ 
+00:05:35
+ 
+Matt Cohen: Yeah.
+Andy Maag: okay.
+Matt Cohen: I mean, one possibility is we just don't use this at all and we start from scratch. Another is we I don't think I'm going to agree to just license this to them for nothing. Um but um but I am okay with licensing it for the right to have to keep to share the in the improvements that are not dating specific
+Andy Maag: Mhm.
+Hugo Grimmett: We I I guess I'm finding it hard to imagine a world where we take on a project in the dating kind of area where we don't start from scratch
+Matt Cohen: I'm sorry.
+Hugo Grimmett: like practically like obviously the knowledge that we have doesn't start from scratch like the experience But yeah.
+Matt Cohen: Well, I I don't I don't know about that. So, I mean, let's say they have they have an interface, right, where it gives you a person and you swipe left or swipe right and it gives you information about that person. You can answer questions. Um these those fit completely within our framework. Um we also uh we don't know enough about how their algorithm works and we'll we're we're going to learn everything about how it works.
+ 
+ 
+00:07:05
+ 
+Matt Cohen: And they also said they have a a a description of how they believe all of their competitors algorithms work. Uh, and some of it's in public and I'm sure they have more detail. Um,
+Hugo Grimmett: But I mean like what we've built is what it's prompts. It's the infra it's the graph structure in pyantic.
+Matt Cohen: yeah. Yeah. But you know that, but they don't know how much or little it is.
+Hugo Grimmett: Okay. So I'm fine with I'm fine with that. I just I was just trying to understand whether you were setting expectation that we would be building off this code base in its current form.
+Matt Cohen: What I want to be able to do is build a dual use thing, right? To the extent that we can continue to develop the the the search agent pattern and build a framework that allows us to quickly and easily create search agent systems.
+Hugo Grimmett: Okay.
+Matt Cohen: We we want to retain the rights to continue to use the thing that we've built.
+Hugo Grimmett: So is it that there's a sorry if I'm taking too much time on
+ 
+ 
+00:08:11
+ 
+Matt Cohen: Okay.
+Hugo Grimmett: this?
+Matt Cohen: No, no. This is
+Andy Maag: Next.
+Matt Cohen: important.
+Hugo Grimmett: Okay. Then is it that there's like a centralized like core capability framework for this kind of matching searching kind of agent
+Matt Cohen: That's right. That's
+Hugo Grimmett: and
+Matt Cohen: right.
+Hugo Grimmett: that that there's a specialization bit for Bumble say
+Matt Cohen: Right.
+Hugo Grimmett: that can be peeled off and replaced with another specialization for job search or another specialization for whatever.
+Matt Cohen: Ex precisely like we we've already been talking about it, right? Like if we want to take our current agent and have it search family law documents, we know how we would go about that. You'd have to change the prompts,
+Hugo Grimmett: Well, we we've thought about it
+Kevin Irwin: We've thought
+Matt Cohen: right?
+Kevin Irwin: about I that's
+Hugo Grimmett: a
+Kevin Irwin: Yeah,
+Hugo Grimmett: little
+Kevin Irwin: that's
+Hugo Grimmett: bit.
+Kevin Irwin: my concern here is that we're trying to say we're going to have this general thing, but we don't we don't have any we have any we haven't attempted to build a general thing.
+ 
+ 
+00:09:05
+ 
+Kevin Irwin: We're trying to generalize from one case
+Matt Cohen: That's
+Kevin Irwin: or
+Matt Cohen: right.
+Kevin Irwin: tech
+Hugo Grimmett: We
+Kevin Irwin: we
+Hugo Grimmett: don't
+Kevin Irwin: have
+Hugo Grimmett: know.
+Kevin Irwin: two
+Hugo Grimmett: We don't
+Kevin Irwin: cases.
+Hugo Grimmett: know what we need to keep and what we don't need to keep
+Matt Cohen: Yep.
+Hugo Grimmett: yet, right?
+Matt Cohen: Yep. I I agree.
+Hugo Grimmett: Yeah. Okay.
+Matt Cohen: I agree.
+Hugo Grimmett: Okay. Cool. I I I think I understand. Thank you.
+Matt Cohen: I mean, that was that but the goal from the beginning was to have something that was pluggable.
+Hugo Grimmett: Yeah.
+Matt Cohen: Um, I mean, either that it it's easy to swap or that it knows how to search multiple things and it figures out from context or or a, you know, or some sort of flag which thing it's supposed to do. So, you can imagine if you have a, you know, a planner, you know, a planning agent, if you have a planning pattern and it uh and it says, "Oh, what am I trying to do here? I'm
+ 
+ 
+00:09:46
+ 
+Matt Cohen: trying to find a job so I know how to use my job search things, right? or what am I trying to do? I'm trying to find a date. I know how to use my date search things. Um, but I think the key insights that we have in mind are include the inversion of control. I think we all agree on number one being really important. Um, and some of the other elements in our list, right, from from this uh from these scripts, right? Um, I think another one that we haven't that I I didn't put in here, but is uh something about a contextual memory. Um, Kevin and I talked about this. Um, you know, how do you deal with the situation that your context gets really big? uh and to have a memory that is of the form of something like when I was thinking about this, I wound up doing that.
+Kevin Irwin: So lang graph has something
+Matt Cohen: Some
+Kevin Irwin: like
+Matt Cohen: memories.
+Kevin Irwin: that as
+Matt Cohen: Yeah.
+ 
+ 
+00:10:50
+ 
+Kevin Irwin: a memory store thing. I don't know how how much it aligns with what we talked about.
+Matt Cohen: Yeah. Yeah.
+Kevin Irwin: Well,
+Hugo Grimmett: Sorry,
+Kevin Irwin: I
+Hugo Grimmett: where
+Kevin Irwin: know
+Hugo Grimmett: does
+Kevin Irwin: it
+Hugo Grimmett: this
+Kevin Irwin: doesn't align with some
+Hugo Grimmett: memory come in? I'm confused.
+Matt Cohen: Well, let's say you have a long running. Let's say
+Hugo Grimmett: You
+Matt Cohen: you're
+Hugo Grimmett: know,
+Matt Cohen: you've
+Hugo Grimmett: I I
+Matt Cohen: been running
+Hugo Grimmett: get
+Matt Cohen: this
+Hugo Grimmett: I get why it might be useful. Like, why is this relevant to what we're discussing now?
+Matt Cohen: Oh, because it'll help keep it consistent. I mean, it's it um if you're if you're running it over hundreds or thousands of things, you may need it to to sort through your memory without and without blowing through huge numbers of tokens
+Hugo Grimmett: I see. Okay. All right.
+Matt Cohen: because you you really only care about similar situations to this one where you need the context.
+ 
+ 
+00:11:32
+ 
+Hugo Grimmett: So, for the demo, we have these these script ideas. Um, the
+Matt Cohen: Yeah,
+Hugo Grimmett: first one felt like the first one to do
+Matt Cohen: I we I think we're in agreement on that.
+Hugo Grimmett: and Matt Boswick and I ran it a few times this morning and we came up with some things that would probably need to be improved
+Matt Cohen: Okay.
+Hugo Grimmett: before a successful demo. It's probably worth talking about those, I guess.
+Matthew Bostwick: And our our thought was if we have the three scripts we want to do, we focus on getting them one at a time to amazing experiences and then move on to the next one.
+Matt Cohen: I
+Matthew Bostwick: Um, cool. Um, so with today's meeting focusing on this one, um, and we can we can demo this as well, but I think one of the first big things is like it takes a lot of time to know it needs to ask a question and in between questions as well.
+Matt Cohen: and why do we know why that is?
+Matt Reeves: Yeah. And
+ 
+ 
+00:12:36
+ 
+Matt Cohen: Hello.
+Matt Reeves: I think Alex is well the reason why is because it's in that the position it is is
+Kevin Irwin: Yeah.
+Matt Reeves: in the graph and that we didn't have an internal Go ahead.
+Hugo Grimmett: I don't think that's why it is
+Matt Reeves: Okay.
+Hugo Grimmett: like it's it's it's like It's because the iteration loop takes a long time, right?
+Matt Reeves: and
+Hugo Grimmett: Like
+Matt Reeves: and
+Hugo Grimmett: if
+Matt Reeves: because
+Hugo Grimmett: you
+Matt Reeves: of where
+Hugo Grimmett: added
+Matt Reeves: it
+Hugo Grimmett: it
+Matt Reeves: is,
+Hugo Grimmett: twice,
+Matt Reeves: right?
+Matt Cohen: Heat.
+Hugo Grimmett: then you'd have it, but it I'm not sure that's that's
+Matt Reeves: So, so
+Hugo Grimmett: going
+Matt Reeves: so
+Hugo Grimmett: to make it twice as good.
+Matt Reeves: if I finish what I was saying, um, one of the things Alex PR does is it allows you to to question multiple times in a row. And so that that cuts that part of the cycle down, right?
+Hugo Grimmett: I see. I see. I see. Okay.
+ 
+ 
+00:13:15
+ 
+Hugo Grimmett: Sorry. Sorry.
+Matt Reeves: And the other part of it is that we have this long cycle and we put it in one place in that cycle. And
+Matt Cohen: It has
+Matt Reeves: so
+Matt Cohen: to go all the way around before it can do it again.
+Kevin Irwin: Yeah.
+Matt Cohen: Because if it had a router pattern, then it could choose to ask a bunch of questions in a row before it does any searches.
+Kevin Irwin: Yes.
+Matthew Bostwick: So that'll stall or I guess if it's a router pattern sure but like We're not going to get a router pattern in place between now and demo. Um
+Matt Cohen: Well, but
+Matthew Bostwick: I
+Matt Cohen: we
+Matthew Bostwick: mean
+Matt Cohen: could
+Matthew Bostwick: maybe.
+Matt Cohen: move it to
+Matthew Bostwick: Yeah.
+Matt Cohen: the beginning
+Matthew Bostwick: Right.
+Matt Cohen: or add
+Matthew Bostwick: Yeah.
+Matt Cohen: it
+Matthew Bostwick: Just
+Matt Cohen: again
+Matthew Bostwick: fixing
+Matt Cohen: at
+Matthew Bostwick: the
+Matt Cohen: the beginning, right?
+Matthew Bostwick: You're right. Just Alex
+Matt Reeves: Yeah,
+Matthew Bostwick: is
+Matt Reeves: we
+ 
+ 
+00:13:45
+ 
+Matthew Bostwick: saying
+Matt Reeves: can.
+Matthew Bostwick: helps with N234, right? Or 23 but not N1. So something Yeah. has to change. Yeah.
+Matt Reeves: So we can we can it's I feel like it's um set up to where it can be added as many times as we want in the graph. Uh
+Matt Cohen: Yeah.
+Matt Reeves: the prompt we might want to have changed the prompt a little bit depending on where we put it but
+Matt Cohen: to know what it's trying to do at that point.
+Matt Reeves: yeah but it's but I think we tried to make it we tried to give the prompt all the inputs like everything we know and so it in the structure of it's a subgraph so it's really reusable and gener I mean it's pretty reusable and generic.
+Matt Cohen: I mean, does it know what it's trying to do at that what it's trying to do next? And does that matter?
+Matt Reeves: Um, in the latest I I'll let Alex because he did a latest PR and that might have changed.
+ 
+ 
+00:14:35
+ 
+Matt Reeves: Oh, I can only speak to the original. You're muted.
+Matthew Bostwick: You're muted out.
+Alex Hawk: Um, so as Matt Ree said, it's multiple turn taking and human in the loop. It its objective and its current place, I didn't change it very much. Um, so right now its two purposes is to help it with reduction like getting information to figure out what the best set of results is. Um, and it does it does know to ask questions that would help with getting better search parameters. But as Matt Ree was saying, that's kind of it's it's at the wrong point in the graph to really help with that, right? You want to do it in loop with the query config. Um,
+Matt Cohen: Mhm.
+Alex Hawk: and so that that's the next thing. So the the definition of done for the current thing is just to improve the f the the end of the um like the the current human in the loop and then we'll transfer it over. We'll update the prompt and we'll have that prompt specialize on helping get the query parameters get better.
+ 
+ 
+00:15:40
+ 
+Alex Hawk: That that's that's the current plan.
+Matthew Bostwick: Oh, does it know when it or I guess maybe this will be all the details when we implement the next step here like when it needs to ask a question or when it has enough information to go do a search.
+Alex Hawk: Um I mean it's it's instructed to think if it if it if it would be beneficial like that that's its main purpose um is to ask itself that question. Is it really important for me to ask another question
+Matthew Bostwick: Yeah. Or ask a question at all, not just another
+Alex Hawk: or ask
+Matthew Bostwick: one.
+Alex Hawk: a question at all? That's
+Matthew Bostwick: Okay.
+Alex Hawk: right.
+Matthew Bostwick: Cool. Cool. Okay. Um Okay, that seems like a thing that could help with that. Um
+Matt Cohen: Okay.
+Matthew Bostwick: another thing
+Matt Cohen: Do we feel we know what to do there for.1?
+Alex Hawk: Yeah.
+Matt Cohen: How how big of a change is it to refactor to a a router pattern?
+Alex Hawk: much bigger than it would be to just do a point insertion with the query config.
+ 
+ 
+00:16:37
+ 
+Matt Cohen: Okay. Well, let's start with that then and then we can see how long it takes to do a proper refactor.
+Matt Reeves: Yeah, I think I think the bigger concern we could do the refactor pretty quickly, but then the bigger concern is checking how it works because I think we kind of seen in the past like it then you're kind of opening up to to have it be able to do, you know, choose any path and they might be kind of weird.
+Matt Cohen: Um, all right. Any other questions about speeding it up? I think this seems like a pretty straightforward approach. That
+Hugo Grimmett: We could
+Matt Cohen: is
+Hugo Grimmett: also
+Matt Cohen: so
+Hugo Grimmett: try using for a mini instead of 4.1.
+Matthew Bostwick: especially for query config.
+Alex Hawk: We could the individual LM calls don't take that long though.
+Hugo Grimmett: I thought
+Alex Hawk: Like once
+Hugo Grimmett: have a
+Alex Hawk: you
+Hugo Grimmett: look.
+Alex Hawk: once you tighten where the insertion is, it's only a few seconds to get a question back.
+Matt Cohen: good.
+ 
+ 
+00:17:33
+ 
+Hugo Grimmett: Kevin
+Matthew Bostwick: A
+Hugo Grimmett: didn't
+Matthew Bostwick: few a
+Hugo Grimmett: ask
+Matthew Bostwick: few
+Hugo Grimmett: for it.
+Matthew Bostwick: legal
+Hugo Grimmett: It was
+Matthew Bostwick: LLM
+Hugo Grimmett: like most of
+Matthew Bostwick: demo
+Hugo Grimmett: the
+Matthew Bostwick: seconds. Alex, I'm picking on you. I said a few legal LLM demo seconds or like
+Matt Cohen: Oh, okay.
+Alex Hawk: Oh, no. No. So, I mean, but those those are massive context windows. And
+Matthew Bostwick: Right.
+Alex Hawk: it's a good question because
+Matthew Bostwick: But seconds is a lot. Like seconds is a lot from a user experience standpoint. So if I just said to you, I want a government job. If you go think for 10 seconds before you show me the oh, I need to ask you this really basic question. That's a lot. So I think it's worth considering like like what is the if there is a smaller model that
+Matt Cohen: Um
+Matthew Bostwick: goes much faster that returns just as good of a result.
+Matt Cohen: so so let's so
+ 
+ 
+00:18:12
+ 
+Matthew Bostwick: Yeah.
+Matt Cohen: let's add a couple things. One is consider using a faster model. And then uh the the other is is there something you can show the user while they're waiting that will be that it just makes it feel less
+Hugo Grimmett: articulating spines.
+Matt Cohen: No, no. I meant like tell that would be funny. Um, bouncing balls. Yeah. Um, no, I I meant like what it's thinking is. It says, "Oh, I'm I'm I'm considering, you know, get sharing it internal thoughts,
+Alex Hawk: We need a Matt Coen sub agent that we can call.
+Matthew Bostwick: Okay, I think I think these are good things we
+Matt Cohen: right?
+Matthew Bostwick: can try.
+Matt Cohen: Like if it is generating something and not telling the person, then you could always just tell the person what it's generating and doing at each step, right? If it's off doing something. I mean, literally, if if if all you did was say, "I'm looking at this job." Nope. Looking at this job. Yep.
+ 
+ 
+00:19:13
+ 
+Matt Cohen: Looking at this job. Yep. Looking at this job. Nope. I don't know. Some some something where you could see something that's going on would also help. I we don't have to do it, but that would be the kind of thing that that makes the waiting less painful.
+Andy Maag: Th these are it's true these are good ideas. We also have to be mindful of what we're trying to do in a certain time
+Matt Cohen: Yes.
+Andy Maag: frame.
+Matt Cohen: So, I just put I just want to put it down. You Matt and Kevin and Alec, you you decide what to do. Those are all acceptable. All right. Painpoint two. What What's the point here? I don't quite understand.
+Matthew Bostwick: So right now we present everything as a multiple choice question. Um,
+Matt Cohen: Uh
+Matthew Bostwick: and it always doesn't make sense to and there are two examples. We put this one here. There's another example of like the first question was like, is your experience entry level, mid-level, senior level, executive?
+ 
+ 
+00:20:02
+ 
+Matthew Bostwick: Um, but it seems like the we're not asking the questions in really efficient ways or straightforward ways to always get the answers. Like this question here, my answer
+Matt Cohen: What?
+Matthew Bostwick: might
+Matt Cohen: Number two.
+Matthew Bostwick: is yeah. Number two, like um it's not actually a multiple choice and I actually want probably want you to answer multiple these at the same time of like like Austin, Texas and I'm not open to relocation or like whatever wherever that
+Matt Cohen: Yeah.
+Matthew Bostwick: is.
+Matt Cohen: Yeah.
+Matthew Bostwick: Like
+Matt Cohen: Yeah.
+Matthew Bostwick: it's
+Matt Cohen: Yeah.
+Matthew Bostwick: just
+Matt Cohen: So,
+Matthew Bostwick: a it's a
+Matt Cohen: so,
+Matthew Bostwick: weird presentation.
+Matt Cohen: so I think you can just you can just tweak the prompt here. The the the answer is even though it gives you multiple choice, you can answer whatever you want, right? You could say A and B,
+Kevin Irwin: the the
+Matt Cohen: you
+Kevin Irwin: prompt
+Matt Cohen: know.
+Kevin Irwin: is telling it to prefer multiple choice right now. So I mean I think removing that would be would
+ 
+ 
+00:20:45
+ 
+Matt Cohen: Well, I I I
+Kevin Irwin: deal with some of that.
+Matt Cohen: think you still want it to give multiple choice when it can, but to make it clear that you don't, you know, either include an other or have it say that you can answer multiple answers, free, you know, free form answer. maybe give an example or something like that that you know uh uh like you know when you're doing uh uh um 20 questions and it and it says you know is it bigger than a bread box you can say yes or no but you can also say sort of or mostly and it will be fine with that so we just have to make it clear that you're not constrained and I don't There's a bunch of different ways to do that. Um,
+Hugo Grimmett: We can figure that out. That's fine. We just
+Matthew Bostwick: Yeah.
+Hugo Grimmett: wanted to document
+Matthew Bostwick: Yeah.
+Matt Cohen: but I would
+Hugo Grimmett: this
+Matt Cohen: I
+Hugo Grimmett: right
+Matt Cohen: would just
+Hugo Grimmett: now.
+Matt Cohen: tweak
+ 
+ 
+00:21:36
+ 
+Hugo Grimmett: It doesn't look
+Matt Cohen: I
+Hugo Grimmett: good.
+Matt Cohen: would tweak the
+Matthew Bostwick: Yeah.
+Matt Cohen: answer. I would tweak the the prompt so that it it asks the question in a way that it makes it clear that you don't that you can answer whatever you want or you can just, you know, pick one of these as a shortcut.
+Alex Hawk: which options, if any, would be acceptable be
+Matthew Bostwick: Mhm.
+Alex Hawk: a good way to start phrasing or phrase it.
+Hugo Grimmett: Let's Let's
+Matt Cohen: Yeah.
+Hugo Grimmett: move on. I think we got
+Matt Cohen: But
+Hugo Grimmett: this one.
+Matt Cohen: but
+Matthew Bostwick: Yeah.
+Matt Cohen: but
+Matthew Bostwick: Yeah.
+Matt Cohen: but
+Matthew Bostwick: We Yeah.
+Matt Cohen: the multiple choice does make it much less painful to to answer the question. Otherwise, it it often asks you to write like big long essays
+Matthew Bostwick: Yeah,
+Matt Cohen: um
+Matthew Bostwick: I mean
+Matt Cohen: or
+Matthew Bostwick: I I
+Matt Cohen: ask
+Matthew Bostwick: think we
+Matt Cohen: you
+Matthew Bostwick: can
+Matt Cohen: like a bunch of questions.
+ 
+ 
+00:22:11
+ 
+Matthew Bostwick: I think we want it to demo well and we wanted to demo in a way that someone like an RC can imagine like oh this is really clear on like five different user experiences I can power from this like having like a like a pill experience with a with a text box or whatever like we we we're just documenting these. I think some
+Matt Cohen: Yeah.
+Matthew Bostwick: of these we know how to improve them. So,
+Matt Cohen: Yeah. Yeah. No,
+Matthew Bostwick: we
+Matt Cohen: I understand.
+Matthew Bostwick: can move on
+Matt Cohen: I'm just
+Matthew Bostwick: for
+Matt Cohen: trying
+Matthew Bostwick: this
+Matt Cohen: to
+Matthew Bostwick: one.
+Matt Cohen: provide
+Matthew Bostwick: Yeah.
+Matt Cohen: suggestions
+Matthew Bostwick: Yeah.
+Matt Cohen: and we
+Matthew Bostwick: Yeah.
+Matt Cohen: can move
+Matthew Bostwick: Yeah.
+Matt Cohen: on. So, one thing, one format that might work is to give example answers and some of them have letters with them. So maybe if you listed A B, you know, A this, B that, C that, and or then just sort of or, you know, Austin and New York, um, you know, and then they could answer with a letter or with whatever they want, right?
+ 
+ 
+00:23:01
+ 
+Matt Cohen: You could say answer whatever you like or use one of the choices above, right?
+Matthew Bostwick: Mhm.
+Matt Cohen: Or something like that. Just
+Matthew Bostwick: Yeah.
+Matt Cohen: says that's worked for me.
+Matthew Bostwick: Um, Hugo, do you feel like we need to have discussion three right now? Like one of the things we were definitely this morning, we didn't have um
+Hugo Grimmett: Yeah. Yeah, we
+Matthew Bostwick: uh
+Hugo Grimmett: do. We totally
+Matthew Bostwick: Okay.
+Hugo Grimmett: do.
+Matthew Bostwick: Yeah. So, we do know how conversational
+Hugo Grimmett: It doesn't
+Matthew Bostwick: mode.
+Hugo Grimmett: it doesn't meet the sniff test right now.
+Matthew Bostwick: That's fair.
+Hugo Grimmett: So So
+Matthew Bostwick: Um
+Hugo Grimmett: the issue is this, right? If I give it we've been testing with these highly over constrained personas
+Matt Cohen: You
+Hugo Grimmett: so
+Matt Cohen: mean
+Hugo Grimmett: far.
+Matt Cohen: where we know a lot about them.
+Hugo Grimmett: Yeah. Right.
+Matt Cohen: If you start with like
+Hugo Grimmett: In
+Matt Cohen: a
+Hugo Grimmett: the
+Matt Cohen: blank
+ 
+ 
+00:23:37
+ 
+Hugo Grimmett: mo
+Matt Cohen: persona,
+Hugo Grimmett: in this model in script one, we know very little. We start with little and we want to see it build up intelligently. Now
+Matt Cohen: right?
+Hugo Grimmett: what happens is when you when you give it almost no information at the beginning then it asks you a good question but then the job responses sometimes it gives you a score of six or seven for how well it matches and it's like you don't know anything about me like or
+Matt Cohen: So
+Hugo Grimmett: what I want. So
+Matthew Bostwick: And
+Hugo Grimmett: how can
+Matthew Bostwick: it
+Hugo Grimmett: you
+Matthew Bostwick: and
+Hugo Grimmett: possibly
+Matthew Bostwick: it
+Matt Reeves: What's
+Matthew Bostwick: hallucinates.
+Hugo Grimmett: say
+Matt Reeves: the
+Hugo Grimmett: this
+Matt Reeves: uncertainty?
+Hugo Grimmett: is a great match?
+Matt Cohen: and and
+Matthew Bostwick: The uncertainty
+Matt Cohen: it has a high
+Matthew Bostwick: is
+Matt Cohen: certainty
+Matthew Bostwick: not that high.
+Hugo Grimmett: The
+Matthew Bostwick: The certainty
+Hugo Grimmett: uncertainty
+Matthew Bostwick: is
+Hugo Grimmett: was
+Matthew Bostwick: like
+Hugo Grimmett: never
+ 
+ 
+00:24:07
+ 
+Matthew Bostwick: two.
+Hugo Grimmett: higher than two out of five.
+Matt Cohen: is so what does it mean to be highly uncertain but very optimistic? Right. I mean, if if you don't see anything if if you don't see anything that contradicts a match,
+Hugo Grimmett: Well, but
+Matt Cohen: but
+Hugo Grimmett: so this is the question, right? Should it be should it be giving the match score based on what it what it has been told about you in which case if you tell it nothing then almost anything fits right so it can give high scores out all day long but if but or do you give the match score assign a match score based on how much it could expect to know about a job seeker in which case it's like oh I don't know very much about you so I'm never going to give a match fit bigger than three because I just can't know I don't know And I feel like if I'm if I'm like just a lay
+Matt Cohen: Okay.
+Hugo Grimmett: person
+Matt Cohen: So,
+Hugo Grimmett: like
+Matt Cohen: here here's
+ 
+ 
+00:25:05
+ 
+Hugo Grimmett: almost nothing and it gives me a
+Matt Cohen: here's
+Hugo Grimmett: score
+Matt Cohen: here's
+Hugo Grimmett: a
+Matt Cohen: how
+Hugo Grimmett: job
+Matt Cohen: I
+Hugo Grimmett: with
+Matt Cohen: would
+Hugo Grimmett: score seven I'm like wait
+Matt Cohen: so here's
+Hugo Grimmett: what
+Matt Cohen: how to think about the answer. I I went through went through and said indeed um that if you don't know anything about them you should assume that they are a completely average typical random person that's the base rate right it's the base case if like so if I don't know anything better like you you should assume that they're just a random
+Hugo Grimmett: So
+Matt Cohen: or
+Hugo Grimmett: Neil
+Matt Cohen: random
+Hugo Grimmett: mentioned this
+Matt Cohen: average
+Hugo Grimmett: before, right? He mentioned that we could have like a a a like base assumption profile and and it's some a list of stated assumptions that we're going to make and any preference that the user gives that can override any of those base assumptions.
+Matt Cohen: Right. Right. So, for example, the the most common search on Indeed is blank.
+ 
+ 
+00:25:55
+ 
+Matt Cohen: It's just Austin, Texas. It's just a location with no keywords, right? These are people who just want a job. Right. And so the so you could think of the empty search as I'll take any job I can get.
+Hugo Grimmett: Does that also imply entry Oh,
+Matt Cohen: Uh probably but it you know but it would it would imply that the that the prompt would be something like you know like does does the person have the required skills right or does the person have the requirements? Uh and if if you know they don't then you get a low score. If you don't know if they do or not then you have a high uncertainty.
+Alex Hawk: So Matt, I would
+Matt Cohen: Yeah.
+Alex Hawk: present an alternative hypothesis
+Matt Cohen: Yeah.
+Alex Hawk: because at Amazon the Amazon search like their number one search is also the the empty thing.
+Matt Cohen: Yeah.
+Alex Hawk: And
+Hugo Grimmett: That's crazy.
+Alex Hawk: in that case, it's clear that they probably weren't searching for anything. It was just an accident.
+ 
+ 
+00:27:05
+ 
+Alex Hawk: So, I
+Matt Cohen: Uh
+Alex Hawk: would sus
+Matt Cohen: that's not the case on Indeed.
+Alex Hawk: they're intentionally searching the blank string.
+Matt Cohen: I believe so, man.
+Matthew Bostwick: I mean, yeah. I mean, job like this is the problem with job search, which is like job seekers have been trained like I got to look at all the jobs. I'm gonna like I don't like I have to apply to a bunch. like there's a lot of related ones. And so generally like you have a little a lot of middle skill workers who are like really open for almost anything and are doing searches and are willing to apply to 20 jobs a day.
+Matt Cohen: Yeah, it
+Alex Hawk: What?
+Matt Cohen: would be like some I mean people don't know how to do this, but if you if you went to Amazon and you you're like, I feel like buying something. I don't know what I want to buy something, but I'm shopping
+Matthew Bostwick: Yeah.
+Matt Cohen: and I want to buy something that's gonna make me feel good,
+ 
+ 
+00:27:52
+ 
+Matthew Bostwick: Yeah,
+Matt Cohen: right?
+Matthew Bostwick: the
+Matt Cohen: How do you
+Matthew Bostwick: difference
+Matt Cohen: how would
+Matthew Bostwick: is
+Matt Cohen: you do that
+Matthew Bostwick: am
+Matt Cohen: today?
+Matthew Bostwick: the difference is Amazon's going to send you everything you click on and you have to pay for it. The the thing at Indeed is we they made it so easy to apply to jobs. I built in apply like you just click a button. Um and like you know you're not going to hear back from any of them you apply to
+Matt Cohen: But
+Matthew Bostwick: today. Like you're lucky
+Matt Cohen: so
+Matthew Bostwick: if you get hear back from one this week. And so
+Matt Cohen: yeah.
+Matthew Bostwick: like
+Matt Cohen: Yeah.
+Matthew Bostwick: it's a it's
+Matt Cohen: But
+Matthew Bostwick: a
+Matt Cohen: let's
+Matthew Bostwick: spray and
+Matt Cohen: focus
+Matthew Bostwick: pray.
+Matt Cohen: on Alex's
+Matthew Bostwick: Yeah.
+Matt Cohen: thing and I want to move
+Matthew Bostwick: Yeah.
+Matt Cohen: on because I want to make sure we we don't we get
+ 
+ 
+00:28:20
+ 
+Matthew Bostwick: Yeah.
+Matt Cohen: through the end and get people to get to work. Um, if on Amazon, if you went if if I you said, you know, I feel like buying something, right? And you went to Amazon and said, I want to buy something. How would you do that? You don't you don't know anything about what they want to buy, and you got
+Alex Hawk: Yeah,
+Matt Cohen: to start with something.
+Alex Hawk: that's
+Matt Cohen: Let's say
+Alex Hawk: true.
+Matt Cohen: they have no history.
+Alex Hawk: But but their their conclusions, I don't know how they came to it, was that those are accidental. Like they weren't these
+Matt Cohen: Well,
+Alex Hawk: were not
+Matt Cohen: I
+Alex Hawk: people
+Matt Cohen: mean,
+Alex Hawk: looking
+Matt Cohen: the
+Alex Hawk: to
+Matt Cohen: diff
+Alex Hawk: buy stuff.
+Matt Cohen: the difference is that the search box on Indeed has keywords and location. So you can do a search on Indeed by just putting in your location, right? If you go to if you go to Amazon, maybe we can try it.
+ 
+ 
+00:28:58
+ 
+Matt Cohen: But if you go to Amazon and say, I want to I want to buy a present for my for my for my nephew. What does it do? Right? Or if you just go but but the point is it doesn't even really support that use case at all right now. Right? Like for example, I just yesterday I was buying something on Amazon and I'll finish up in five seconds. I was and I needed like three more dollars in my order to get a same day order. And I'm like, "Okay, I just want to buy something for $3 that I that I actually want that will cost at least $3 so I can get an order the same day so I can get over the $25 minimum. So like, find me something that I want that costs at least $3, but not more than like 20.
+Hugo Grimmett: to bring us back to this this script. Do you guys think maybe we can just do a vote? If you give almost no information, our example here was I want a government job in USA jobs, right?
+ 
+ 
+00:29:57
+ 
+Hugo Grimmett: If you give if you give almost no information and you get a you see a job return for some random job with a score of six or seven, do you think that makes sense or is that weird to you? Can we do a thumbs up for that makes sense and like a thumbs down for that feels like a weird weird answer? I'm just
+Andy Maag: If
+Hugo Grimmett: trying to figure out like
+Andy Maag: if the
+Hugo Grimmett: does this
+Andy Maag: job
+Hugo Grimmett: demo
+Andy Maag: doesn't if the job doesn't require any special qualifications and it's a government job.
+Matt Cohen: If if the job is a good match for somebody about which whom you know nothing, then it's a high score and a low certainty.
+Matthew Bostwick: I think I think that is different
+Matt Cohen: would
+Matthew Bostwick: than
+Matt Cohen: be
+Matthew Bostwick: what
+Matt Cohen: my
+Matthew Bostwick: we
+Matt Cohen: would be my interpretation.
+Matthew Bostwick: I think that's fine for getting to a definition of this. I think that's different than the current experience. I happen to take it like right
+ 
+ 
+00:30:48
+ 
+Matt Cohen: Right.
+Matthew Bostwick: now there's a lot of hallucination in the current experience. Um it assumed like you want management experience or like you want to work in this type of setting like it was doing a lot of
+Hugo Grimmett: We
+Matthew Bostwick: that
+Hugo Grimmett: should
+Matthew Bostwick: and
+Hugo Grimmett: add
+Matthew Bostwick: it's
+Hugo Grimmett: that
+Matthew Bostwick: reasoning.
+Hugo Grimmett: as an extra pain point. Like that's a separate thing.
+Matt Cohen: I mean, what I would expect to
+Matthew Bostwick: Yeah.
+Matt Cohen: happen though is for it to just ask me questions rather than going off and doing searches. Or maybe it it it made up a job and is just getting my feedback on it, right? That would that would be
+Kevin Irwin: Well,
+Matt Cohen: useful, too. Like what would I expect to happen? I'd expect it to dig in a little bit more before it started doing I mean it might do some searching but
+Kevin Irwin: yeah,
+Matt Cohen: primarily it should
+Hugo Grimmett: All
+Matt Cohen: be asking me questions.
+Kevin Irwin: it might it Yeah, it might do this do a search just to find well, what is what is there that's roughly available and then ask you a question based on what it just got back.
+ 
+ 
+00:31:42
+ 
+Hugo Grimmett: right.
+Kevin Irwin: Hey,
+Matt Cohen: Yeah.
+Hugo Grimmett: But
+Kevin Irwin: I noticed
+Hugo Grimmett: Kevin, Kevin, let's say it has to score those jobs.
+Kevin Irwin: no
+Hugo Grimmett: What
+Kevin Irwin: I
+Hugo Grimmett: would you
+Kevin Irwin: I
+Hugo Grimmett: expect
+Kevin Irwin: would
+Hugo Grimmett: to see?
+Kevin Irwin: I don't I don't know. the the main thing I would think expect is high uncertainty
+Matt Cohen: Yeah.
+Kevin Irwin: like I would almost as if you know like my current internal models right the scoring is conditioned on these assumptions that I made and now if I have a bunch of things I have all these assumptions
+Matt Cohen: Heat.
+Kevin Irwin: well how do I val which which assumptions can I validate what's a good question to ask to validate some of these assumptions so
+Hugo Grimmett: So
+Kevin Irwin: that I
+Hugo Grimmett: let's
+Kevin Irwin: can
+Hugo Grimmett: make let's let's put pain point three is like make sure uncertainty is high when information is low.
+Matthew Bostwick: And these are ambiguous jobs. Everything's ambiguous. Yeah.
+Matt Reeves: I
+Hugo Grimmett: Yeah.
+Matt Reeves: I also kind of feel like if if uncertainty passes a threshold, then the match score can just stay unknown.
+ 
+ 
+00:32:36
+ 
+Matthew Bostwick: Right. That's how I kind of treated it in the verdict uh thing in the the
+Matt Cohen: I
+Matthew Bostwick: evolution
+Matt Cohen: no
+Matthew Bostwick: of
+Matt Cohen: I
+Matthew Bostwick: that prompt. Yeah.
+Matt Cohen: I I think if you have a job that would be acceptable to 80% of the US population then you can then it's a good match for somebody about which you know nothing
+Hugo Grimmett: Let's let's
+Matt Cohen: but
+Hugo Grimmett: add
+Matt Cohen: it's
+Hugo Grimmett: that as a
+Matt Cohen: but
+Hugo Grimmett: second
+Matt Cohen: it's
+Hugo Grimmett: thing
+Matt Cohen: but
+Hugo Grimmett: then
+Matt Cohen: it's not confident.
+Hugo Grimmett: like low information should return should should by default search for entry-level jobs.
+Matt Cohen: Well, or put another way, it should search for the average person. Like if if you it should it should go back to the base case, right? Which you could either think of as the average person or random person or or a set of random people, right? If you really wanted to know, you'd pick like a thousand random people and score it against them and then you know if and then base your score on that, right?
+ 
+ 
+00:33:33
+ 
+Matt Cohen: You um
+Matt Reeves: I I
+Matt Cohen: you
+Matt Reeves: think
+Matt Cohen: know
+Matt Reeves: I
+Matt Cohen: that
+Matt Reeves: had one
+Matt Cohen: the certainty
+Matt Reeves: clarification.
+Matt Cohen: would be the variance in the scores and the score would be the average of the scores, right?
+Matt Reeves: Um
+Matt Cohen: Put it put another way the the as you ask questions if let's say there are let's there's a fixed number of people out in the world ask as you ask questions you're narrowing down the number of people that this person could be right and what as they tell you stuff and you ask them questions instead of thinking about as what do you know about this person the people are who they are you're narrowing down the categories of people as you ask questions and then you're trying to do the best you can for all the actual people who would have given those answers and that's some unknown distribution but that's the way I would think about it
+Matt Reeves: Just one quick clarification. Should we separate what we show the user and what like we're talking about internal scoring or talking about what are we presenting to the user?
+ 
+ 
+00:34:33
+ 
+Matt Cohen: for now I think for now I think it's okay as long as we have a reasonable explanation for the people at Bumble right we
+Matt Reeves: Okay.
+Matt Cohen: haven't made up a tight distinction between the expert slash, you know, debug interface and what we might eventually show to a user. I think that's fine because right now we're not really going to be showing this to real users immediately. It
+Matt Reeves: Okay.
+Matt Cohen: I think the more internals we show the better as long as we can justify them.
+Matt Reeves: So, I think everything you're saying about the score makes sense for internal. I was
+Matt Cohen: Yeah.
+Matt Reeves: thinking more on the user side like why it would be confusing to see a score and why you might want to show unknown. Um, but if we're
+Matt Cohen: Yeah.
+Matt Reeves: this demo is not really for like an end user.
+Matt Cohen: Right. Right. I mean, I think you can also describe it in English. You could say, "Hey, this might be a good fit for you if if some things are true, right? Think
+ 
+ 
+00:35:27
+ 
+Matt Cohen: about that as high score, low certainty, right? Um or versus I know this is a good fit for you given what I know about you so far.
+Matthew Bostwick: I'm gonna I'm gonna say basically like for for the purposes of next week and this
+Matt Cohen: But
+Matthew Bostwick: thing,
+Matt Cohen: yeah, I don't know what we're trying
+Matthew Bostwick: let's
+Matt Cohen: to accomplish here,
+Matthew Bostwick: let's
+Matt Cohen: right?
+Matthew Bostwick: basically I think I think what we want to try to agree on is like like these jobs that like right now it's kind of hallucinating and stretching to make them certain good fits
+Matt Cohen: Maybe you
+Matthew Bostwick: like
+Matt Cohen: can show some examples because I Yeah, I don't know what
+Matthew Bostwick: Yep.
+Matt Cohen: that means,
+Matthew Bostwick: There's a we put a ticket in and there's a
+Matt Cohen: right?
+Matthew Bostwick: trace on the ticket.
+Matt Cohen: Maybe a link
+Matthew Bostwick: Um
+Matt Cohen: to it would be great. Yeah,
+Matthew Bostwick: uh
+Matt Cohen: I think it's probably
+Matthew Bostwick: can you
+Matt Cohen: fine.
+Matthew Bostwick: dig that up?
+ 
+ 
+00:36:10
+ 
+Matt Cohen: If we
+Matthew Bostwick: Yeah.
+Matt Cohen: can give an explanation for why it's doing it that makes sense, we're good.
+Matthew Bostwick: Yeah. I think I think like future like all these ideas are great
+Matt Cohen: When
+Matthew Bostwick: but
+Matt Cohen: you say
+Matthew Bostwick: like
+Matt Cohen: hallucination,
+Matthew Bostwick: I'll say
+Matt Cohen: I that could be a lot of different things. So, I'm curious what what that means.
+Matthew Bostwick: um it was making up um uh preferences, experiences, skills um in its reasoning for why things were good certain matches based on like literally all I put in was the prompt of I want a government job and it was making up things like you prefer a manage this user prefers a management role um and things like that.
+Matt Cohen: Uh, okay. Well, then that you
+Matthew Bostwick: Yeah.
+Matt Cohen: could fix by by putting in a prompt that asks it to check to make sure that all of its that its reasoning is based on what it knows. It'll catch that,
+Alex Hawk: Now
+Matt Cohen: right?
+Alex Hawk: boss, did that happen in later iterations or the first iteration?
+ 
+ 
+00:37:07
+ 
+Alex Hawk: Was I'm wondering is it the first
+Matthew Bostwick: First
+Alex Hawk: iteration?
+Matthew Bostwick: generation.
+Alex Hawk: Okay. Yeah, then we should definitely improve that.
+Matthew Bostwick: Yeah. the latest ticket in GitHub should be that thing. But
+Matt Cohen: You could
+Matthew Bostwick: I
+Matt Cohen: also explicitly put in like I don't know anything else about this person.
+Matthew Bostwick: I think a thing that is worth noting though is that when I turned on human in the loop, it decided it should ask a question instead of show me those results.
+Matt Cohen: Oh, that's good. Yeah,
+Matthew Bostwick: And
+Matt Cohen: that's
+Matthew Bostwick: so
+Matt Cohen: what it's
+Matthew Bostwick: so
+Matt Cohen: supposed
+Matthew Bostwick: that's
+Matt Cohen: to do,
+Matthew Bostwick: that's
+Matt Cohen: right?
+Matthew Bostwick: yeah, that's that's great.
+Matt Cohen: But
+Matthew Bostwick: That's
+Matt Cohen: making
+Matthew Bostwick: really
+Matt Cohen: stuff
+Matthew Bostwick: good.
+Matt Cohen: up is not good, right? It should know what it doesn't know.
+Matthew Bostwick: Yeah. Okay. So, these are the three big things that we had uncovered.
+ 
+ 
+00:37:44
+ 
+Matthew Bostwick: Uh, for this first one, we'll do a time check. Um, we're at 5 minutes left. Um, do we Let's figure out who is going to address these different ones. And maybe quickly, um, I know yesterday there's a lot of work split up. Um, it sounds like PR is ready. Um what's what should we know about the improvements from yesterday to today and when should those be there?
+Alex Hawk: Uh, as far as the improvements from yesterday, um, I can speak to the human in the loop. Um, I'm actively testing it right now. Um, and ironing out some experience issues that I see in it. Um, I also I'm testing it on profile 37 in the drop down. That's Sarah Brooks. So that's the aerospace engineer who we got very bad results for before we sort of did the exploration and query expansion in an intelligent way and then we started getting good results. Um, I'm seeing a little bit of mixed results with that profile right now. And um, I I think I know how to fix them uh or
+ 
+ 
+00:38:59
+ 
+Matt Cohen: What
+Alex Hawk: make
+Matt Cohen: do
+Alex Hawk: them
+Matt Cohen: you think's
+Alex Hawk: more.
+Matt Cohen: going on when you say mixed results? What do you mean? And what do you think's going on?
+Alex Hawk: Um so one thing that happens it it terminates like one one of the situations where it didn't find any good results it didn't do a second iteration over the whole graph um so there might have been um some kind of regression um in
+Matt Cohen: I
+Alex Hawk: terms
+Matt Cohen: mean
+Alex Hawk: of
+Matt Cohen: it
+Alex Hawk: like
+Matt Cohen: terminated decided to stop searching
+Alex Hawk: yeah like on one occasion like not on
+Matt Cohen: even though it hadn't found anything.
+Alex Hawk: it found stuff that wasn't It was like before we had fixed
+Matt Cohen: But
+Alex Hawk: the solution.
+Matt Cohen: does it give a reason for why it stopped? It should. If it doesn't, we should ask it to give one and we can look at the reason.
+Alex Hawk: Yeah, it didn't it didn't give a I don't think maybe it did give a reason, but I don't remember seeing it.
+ 
+ 
+00:39:47
+ 
+Alex Hawk: I
+Matt Cohen: Okay.
+Alex Hawk: just remember saying it had decided to complete the search. Um,
+Matt Cohen: Right.
+Alex Hawk: so
+Matt Cohen: But I guess my point is we should make sure it it gives when it does that it gives a reason and
+Alex Hawk: absolutely.
+Matt Cohen: if it seems wrong, we should go look at the reason.
+Alex Hawk: Yeah, absolutely.
+Matt Cohen: We could also put that into the LLM as judge and say like if if you didn't find anything good, what what what's the reason you stopped? And
+Kevin Irwin: I
+Alex Hawk: Right.
+Kevin Irwin: thought
+Matt Cohen: if the
+Kevin Irwin: the
+Matt Cohen: answer
+Kevin Irwin: I
+Matt Cohen: is
+Kevin Irwin: thought
+Matt Cohen: like
+Kevin Irwin: we
+Matt Cohen: I ran out
+Kevin Irwin: I
+Matt Cohen: of iterations.
+Kevin Irwin: thought we only have iterations is basically the only check, right? There's no there's no asking LLM if we should continue. Is
+Alex Hawk: Oh,
+Kevin Irwin: there
+Alex Hawk: you know, that's an interesting point. So
+Matt Cohen: Oh, really? We originally I thought we had that originally, Matt Reeves.
+ 
+ 
+00:40:30
+ 
+Alex Hawk: yeah, it's possible that it's not maybe I just didn't read the logs correctly and maybe it did actually do the four iterations
+Matt Cohen: because there's
+Alex Hawk: and
+Matt Cohen: supposed to be a prompt where it says should I do another iteration
+Alex Hawk: um
+Matt Cohen: and that we have a cap. I thought we had done that in
+Alex Hawk: I I
+Matt Cohen: the past.
+Alex Hawk: think right now it's just it's hardcoded that we'll do the
+Matt Cohen: Okay.
+Alex Hawk: fixed number of iterations. So I need to make sure that we didn't short circuit out. And
+Matt Cohen: That
+Alex Hawk: then if if
+Matt Cohen: Yeah.
+Alex Hawk: we did if if I think what that means is that we we got bad search query parameters in in the situation that we we terminated without finding good results.
+Matt Cohen: But I mean, does that still in the graph where where it looks to see like do I have enough good results to stop and or
+Alex Hawk: I don't think that's that I don't think that's ever been in the graph unfortunately.
+ 
+ 
+00:41:19
+ 
+Alex Hawk: It's always like that was like something we were going to add, but it's always been hardcoded at a certain number of iterations. I think Matt Ree.
+Matt Reeves: It might I think it might have been in and we removed it at one point to simplify.
+Matt Cohen: Okay.
+Matt Reeves: Yeah.
+Matt Cohen: Okay. So, that's another item that we can add. But I think if we just make sure that there's more, I mean, if you run it for four iterations, it doesn't find anything, that doesn't necessarily tell you anything because that
+Alex Hawk: Yeah.
+Matt Cohen: person is is a weird, you know, is it is it has a very specific skill set and needs to look hard.
+Alex Hawk: Yeah. It's also possible that the human in the loop answers I gave uh made it impossible for for it to find the jobs that were high matches.
+Matt Cohen: Well, that's okay, right? Then that's a correct answer.
+Alex Hawk: Uh I think except I thought the answers I was giving would direct it to
+Matt Cohen: Oh, I
+Alex Hawk: the
+ 
+ 
+00:42:06
+ 
+Matt Cohen: see.
+Alex Hawk: the
+Matt Cohen: Okay.
+Alex Hawk: good results.
+Matt Cohen: I mean, the thing is I I I wouldn't focus on doing a lot of human in the loop. I mean, maybe we can, but it it uh can you uh
+Matthew Bostwick: I don't I don't
+Matt Cohen: maybe
+Matthew Bostwick: know if
+Matt Cohen: there
+Matthew Bostwick: the
+Matt Cohen: should be a way to say like don't talk to me anymore,
+Alex Hawk: Yeah.
+Matt Cohen: you know?
+Alex Hawk: Yeah, there is. There's there's a decline to answer that.
+Matt Cohen: And
+Alex Hawk: I'm
+Matt Cohen: will it then stop indefinitely? But the point is what what I'd kind of like to do is say, I've given you what I'm going to give you. Just just keep going.
+Alex Hawk: Yeah.
+Matt Cohen: Like
+Alex Hawk: Yeah.
+Matt Cohen: don't don't ask me anymore.
+Alex Hawk: There there is some some stuff in the prompt about that. Um I will say that I'm in the very I I didn't really start testing this in
+Matt Cohen: Okay.
+Alex Hawk: earnest
+ 
+ 
+00:42:47
+ 
+Matt Cohen: All right,
+Alex Hawk: this
+Matt Cohen: then.
+Alex Hawk: morning.
+Matt Cohen: Then let's
+Alex Hawk: We'll make a lot of progress today on it.
+Matt Cohen: I think we're good. This is great.
+Alex Hawk: Now, boss, did you get what you needed from this?
+Matthew Bostwick: Yeah. Yeah. I think I I just in in back to the goal like I don't know that the like a lot of iterations is super relevant for the demo next week. Um, it sounds
+Matt Cohen: Why?
+Matthew Bostwick: like
+Matt Cohen: Why?
+Matthew Bostwick: Well, because it's it
+Matt Cohen: So,
+Matthew Bostwick: sounds
+Matt Cohen: so here's why I'm here
+Matthew Bostwick: Yeah.
+Matt Cohen: I say this. It is if that's what it takes to get a great a great result, right? In other words, one of the main points here is that this can this can do a million swipes. You know, it can do a thousand searches and a human can't. So I think that is a wow approach if it is true that you know one of the biggest challenges is information overload and time available and this solves both of those problems.
+ 
+ 
+00:43:41
+ 
+Matt Cohen: So, I think it's really critical to say, you know, if you only did 10 of these, you wouldn't have found it. But if you did 10,000, you would. And you'll find the
+Matthew Bostwick: Okay.
+Matt Cohen: perfect, right?
+Matthew Bostwick: I'm I'm not sold that that's a problem with job search. That's all. Um
+Matt Cohen: I'm not talking about
+Matthew Bostwick: Yeah.
+Matt Cohen: job search.
+Matthew Bostwick: Yeah.
+Matt Cohen: I'm
+Matthew Bostwick: Yeah.
+Matt Cohen: talking about search.
+Matthew Bostwick: Yeah.
+Matt Cohen: In this case, we're talking about projecting. I disagree with you because
+Matthew Bostwick: Yeah. Yeah.
+Matt Cohen: especially for remote jobs, you could work anywhere in in the that's time compatible. There could be hundred thousand jobs that you might be qualified for and there's absolutely no way you could look through them all. That said, with dating, it's even more so, right? There's lots of people you could date, especially if you're willing to do a remote uh or long-distance relationship. Um,
+Matthew Bostwick: I
+Matt Cohen: and
+ 
+ 
+00:44:26
+ 
+Matthew Bostwick: guess that's that's like two different things
+Matt Cohen: but
+Matthew Bostwick: there. I think
+Matt Cohen: but
+Matthew Bostwick: like
+Matt Cohen: we
+Matthew Bostwick: like
+Matt Cohen: need to stop the argument. I
+Matthew Bostwick: Okay.
+Matt Cohen: I have a hypothesis and strong belief that if you give it a lot of time, it will hit diminishing returns and that might take quite a while.
+Matthew Bostwick: A agree. I think there's like I'm trying to understand like is the benefit I do often I do 50 searches for you or I do a bunch of like 50 iterations of refinement, right? And those are I see those as like two
+Matt Cohen: Both
+Matthew Bostwick: different things and like
+Matt Cohen: both, right? like
+Matthew Bostwick: Right.
+Matt Cohen: the the
+Matthew Bostwick: And so
+Matt Cohen: more
+Matthew Bostwick: the
+Matt Cohen: searches
+Matthew Bostwick: very
+Matt Cohen: it does,
+Matthew Bostwick: Yeah.
+Matt Cohen: the more refinement it does, the more results it looks at, the better it is likely to find something that's a great fit.
+Matthew Bostwick: Right. And so in like in order for that problem to be relevant, right, like you need each search to give you unique different results that you need to refine and go look at, which can I think in the use case you just described of like I'm up into remote work.
+ 
+ 
+00:45:22
+ 
+Matthew Bostwick: I might want jobs anywhere. Like I think I think works. I think in the what I understand from talking to RC and the the Bumble opportunity, it's kind of going to be like you have the database of of available information and you're kind of trying to do the two-way match there. So maybe maybe it it makes sense, but the
+Matt Cohen: Well, we
+Matthew Bostwick: Yeah.
+Matt Cohen: haven't I'm
+Matthew Bostwick: Yeah.
+Matt Cohen: not I'm not talking about how we're going to do Bumble yet. I'm
+Matthew Bostwick: Yeah.
+Matt Cohen: just saying if this were a search for a possible date, you would still want to do the same thing. If you were doing, you'd want to do active learning with the person. You'd want to do something that counts as a search, whether it's doing matches and evaluating the matches yourself from your perspective. uh the doing the active learning. I I but I I still believe based on I think good evidence and good instinct that the strength of the AI approach is that it will help you manage the information overload and allow you to do a lot more searching than you otherwise would if you had to do it yourself and and that it can use active learning to ask you the most important questions that you might not otherwise have thought to ask.
+ 
+ 
+00:46:37
+ 
+Matt Cohen: Now whether that's true or not remains to be seen, but
+Andy Maag: I think it's a reasonable hypothesis though, but I think we should call time on this item.
+Matthew Bostwick: Yeah.
+Matt Cohen: yeah.
+Matthew Bostwick: Yeah.
+Matt Cohen: Yes.
+Andy Maag: Um,
+Matthew Bostwick: Yeah.
+Andy Maag: we're
+Matthew Bostwick: Yeah.
+Andy Maag: we're diving
+Matthew Bostwick: We're
+Andy Maag: down
+Matthew Bostwick: 3
+Andy Maag: a
+Matthew Bostwick: minutes
+Andy Maag: rabbit
+Matthew Bostwick: over
+Andy Maag: hole.
+Matthew Bostwick: and
+Matt Cohen: All right.
+Matthew Bostwick: did Yeah.
+Matt Cohen: What are
+Matthew Bostwick: Uh
+Matt Cohen: what uh Matt, Kevin, Alex, uh you should feel free. I think you have a good feel at this point for what is important and what takes what amount of work. use your judgment and just keep us posted about what you're working on and how it's going. And if you have any questions that we can answer. All right. And if you have something to show, let us know. We can hop on a a call or you can do a Loom video. Thank you. Is that a good place? Is that a good place to stop? Thank you. This is awesome. I think this is a great opportunity for all of us.
+ 
+ 
+Transcription ended after 00:49:27
+
+This editable transcript was computer generated and might contain errors. People can also change the text after it was created.
