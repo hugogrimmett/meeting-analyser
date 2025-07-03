@@ -15,6 +15,9 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 from scipy.stats import t
+import warnings
+warnings.filterwarnings("ignore", message=".*NotOpenSSLWarning.*")
+
 
 CREDENTIALS_FILE = 'credentials.json'
 TOKEN_FILE = 'token.pickle'
@@ -22,7 +25,10 @@ SCOPES = [
     'https://www.googleapis.com/auth/presentations',
     'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/calendar.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly'
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid',
 ]
 
 def parse_date(s):
@@ -89,11 +95,18 @@ def get_google_services():
             creds = flow.run_local_server(port=0)
         with open(TOKEN_FILE, 'wb') as token:
             pickle.dump(creds, token)
+    # Use the People API to get the user's email
+    people_service = build('people', 'v1', credentials=creds)
+    me = people_service.people().get(resourceName='people/me', personFields='emailAddresses').execute()
+    email = None
+    emails = me.get('emailAddresses', [])
+    if emails:
+        email = emails[0].get('value')
     calendar_service = build('calendar', 'v3', credentials=creds)
     drive_service = build('drive', 'v3', credentials=creds)
     slides_service = build('slides', 'v1', credentials=creds)
     sheets_service = build('sheets', 'v4', credentials=creds)
-    return calendar_service, drive_service, slides_service, sheets_service
+    return calendar_service, drive_service, slides_service, sheets_service, email
 
 def find_meetings_with_gemini_notes(calendar_service, time_min, time_max):
     events = []
@@ -434,17 +447,161 @@ def insert_images_to_slide(slides_service, presentation_id, image_urls, slide_ti
         presentationId=presentation_id, body={"requests": requests}).execute()
     print("Inserted images side-by-side into slide", new_slide_id)
 
+def insert_custom_title_slide(slides_service, presentation_id, date_range, email):
+    # Insert BLANK slide at index 0
+    requests = [{
+        "createSlide": {
+            "insertionIndex": 0,
+            "slideLayoutReference": {"predefinedLayout": "BLANK"},
+            "objectId": "custom_title_slide"
+        }
+    }]
+    # Set black background
+    requests.append({
+        "updatePageProperties": {
+            "objectId": "custom_title_slide",
+            "pageProperties": {
+                "pageBackgroundFill": {
+                    "solidFill": {
+                        "color": {"rgbColor": {"red": 0, "green": 0, "blue": 0}},
+                        "alpha": 1.0
+                    }
+                }
+            },
+            "fields": "pageBackgroundFill.solidFill.color"
+        }
+    })
+    # Big title text (center vertically, left aligned)
+    requests.append({
+        "createShape": {
+            "objectId": "main_title_textbox",
+            "shapeType": "TEXT_BOX",
+            "elementProperties": {
+                "pageObjectId": "custom_title_slide",
+                "size": {"height": {"magnitude": 120, "unit": "PT"}, "width": {"magnitude": 700, "unit": "PT"}},
+                "transform": {"scaleX": 1, "scaleY": 1, "translateX": 60, "translateY": 120, "unit": "PT"}
+            }
+        }
+    })
+    requests.append({
+        "insertText": {
+            "objectId": "main_title_textbox",
+            "insertionIndex": 0,
+            "text": "Meeting Analyser Results"
+        }
+    })
+    requests.append({
+        "updateTextStyle": {
+            "objectId": "main_title_textbox",
+            "style": {
+                "foregroundColor": {
+                    "opaqueColor": {"rgbColor": {"red": 1, "green": 1, "blue": 1}}
+                },
+                "fontFamily": "Arial",
+                "fontSize": {"magnitude": 50, "unit": "PT"},
+                "bold": True
+            },
+            "fields": "foregroundColor,fontFamily,fontSize,bold"
+        }
+    })
+    # Date range, slightly smaller, left aligned
+    requests.append({
+        "createShape": {
+            "objectId": "date_range_textbox",
+            "shapeType": "TEXT_BOX",
+            "elementProperties": {
+                "pageObjectId": "custom_title_slide",
+                "size": {"height": {"magnitude": 60, "unit": "PT"}, "width": {"magnitude": 700, "unit": "PT"}},
+                "transform": {"scaleX": 1, "scaleY": 1, "translateX": 65, "translateY": 190, "unit": "PT"}
+            }
+        }
+    })
+    requests.append({
+        "insertText": {
+            "objectId": "date_range_textbox",
+            "insertionIndex": 0,
+            "text": f"Date range: {date_range}"
+        }
+    })
+    requests.append({
+        "updateTextStyle": {
+            "objectId": "date_range_textbox",
+            "style": {
+                "foregroundColor": {
+                    "opaqueColor": {"rgbColor": {"red": 1, "green": 1, "blue": 1}}
+                },
+                "fontFamily": "Arial",
+                "fontSize": {"magnitude": 28, "unit": "PT"},
+            },
+            "fields": "foregroundColor,fontFamily,fontSize"
+        }
+    })
+    # Email line, left aligned, smaller
+    requests.append({
+        "createShape": {
+            "objectId": "email_textbox",
+            "shapeType": "TEXT_BOX",
+            "elementProperties": {
+                "pageObjectId": "custom_title_slide",
+                "size": {"height": {"magnitude": 40, "unit": "PT"}, "width": {"magnitude": 700, "unit": "PT"}},
+                "transform": {"scaleX": 1, "scaleY": 1, "translateX": 65, "translateY": 240, "unit": "PT"}
+            }
+        }
+    })
+    requests.append({
+        "insertText": {
+            "objectId": "email_textbox",
+            "insertionIndex": 0,
+            "text": email
+        }
+    })
+    requests.append({
+        "updateTextStyle": {
+            "objectId": "email_textbox",
+            "style": {
+                "foregroundColor": {
+                    "opaqueColor": {"rgbColor": {"red": 1, "green": 1, "blue": 1}}
+                },
+                "fontFamily": "Arial",
+                "fontSize": {"magnitude": 18, "unit": "PT"},
+            },
+            "fields": "foregroundColor,fontFamily,fontSize"
+        }
+    })
+    slides_service.presentations().batchUpdate(
+        presentationId=presentation_id, body={"requests": requests}
+    ).execute()
+    print("Inserted custom black title slide.")
+
+
+
 def main():
     check_and_help_credentials()
     start, end = get_date_range_from_args_or_prompt()
     time_min = start.isoformat() + 'Z'
     time_max = end.isoformat() + 'Z'
-    calendar_service, drive_service, slides_service, sheets_service = get_google_services()
+    calendar_service, drive_service, slides_service, sheets_service, user_email = get_google_services()
 
+    start_str = start.strftime('%Y-%m-%d')
+    end_str = end.strftime('%Y-%m-%d')
+    your_email = "your@email.com"  # <-- use your real email here
+
+    # After creating the presentation
     presentation = slides_service.presentations().create(body={
-        'title': 'Automated Meeting Analysis Summary'
+        'title': f'Meeting Analyser Results - {user_email} - {start_str} - {end_str}'
     }).execute()
     presentation_id = presentation.get('presentationId')
+
+    # --- DELETE THE DEFAULT SLIDE (index 0) ---
+    slides_list = slides_service.presentations().get(presentationId=presentation_id).execute().get('slides', [])
+    default_slide_id = slides_list[0]['objectId']
+    slides_service.presentations().batchUpdate(
+        presentationId=presentation_id,
+        body={"requests": [{"deleteObject": {"objectId": default_slide_id}}]}
+    ).execute()
+
+    insert_custom_title_slide(slides_service, presentation_id, f"{start_str} to {end_str}", user_email)
+
     url = f"https://docs.google.com/presentation/d/{presentation_id}/edit"
     print(f"\nCreated Slides: {url}")
 
@@ -515,9 +672,9 @@ def main():
             bar_colors = [color_dict.get(name, (0.5,0.5,0.5,1)) for name in names]
             plt.figure(figsize=(max(7, len(names)*1.5),6))
             plt.bar(names, means, yerr=cis, capsize=7, color=bar_colors)
-            plt.ylabel('Words Per Minute (WPM)', fontsize=18)
+            plt.ylabel('Words Per Meeting-Minute (WPM)', fontsize=18)
             plt.xlabel('Participant', fontsize=18)
-            plt.title('Participant Words Per Minute (Mean ± 95% CI)\n(Across all meetings)', fontsize=20)
+            plt.title('Participant Words Per Meeting-Minute (Mean ± 95% CI)\n(Across all meetings)', fontsize=20)
             plt.xticks(rotation=30, fontsize=16)
             plt.yticks(fontsize=16)
             plt.tight_layout()
