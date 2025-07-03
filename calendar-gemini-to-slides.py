@@ -6,6 +6,7 @@ import re
 import datetime
 import argparse
 import webbrowser
+import seaborn as sns
 from collections import Counter, defaultdict
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -13,6 +14,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.http import MediaFileUpload
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.colors as mcolors
 import numpy as np
 from scipy.stats import t
 import warnings
@@ -208,16 +210,30 @@ def collect_all_participants(events, drive_service, sheets_service):
                     participant_set.add(name)
     return participant_order
 
+def distinct_color_grid(n):
+    """
+    Generate n visually distinct RGB colors by using a grid in HLS space.
+    """
+    import math
+    # Choose grid size based on n (e.g. sqrt for hue, 2–3 levels for lightness)
+    k = int(math.ceil(n ** 0.5))  # number of hues
+    l_values = [0.45, 0.65, 0.8] if n > 20 else [0.5, 0.7]
+    colors = []
+    for l in l_values:
+        for i in range(k):
+            h = i / float(k)
+            s = 0.7
+            rgb = mcolors.hls_to_rgb(h, l, s)
+            colors.append(rgb)
+            if len(colors) >= n:
+                break
+        if len(colors) >= n:
+            break
+    return colors[:n]
+
 def make_global_color_dict(participants):
-    import matplotlib.colors as mcolors
     n = len(participants)
-    if n <= 20:
-        cmap = plt.get_cmap('tab20')
-        colors = [cmap(i) for i in range(n)]
-    else:
-        # Generate N unique colors evenly spaced in HSV space
-        hsv = [(i / n, 0.7, 0.9) for i in range(n)]
-        colors = [mcolors.hsv_to_rgb(c) for c in hsv]
+    colors = distinct_color_grid(n)
     return dict(zip(participants, colors))
 
 def parse_timestamp(s):
