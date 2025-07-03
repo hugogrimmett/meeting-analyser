@@ -7,6 +7,7 @@ import datetime
 import argparse
 import webbrowser
 import seaborn as sns
+import colorsys
 from collections import Counter, defaultdict
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -223,7 +224,7 @@ def distinct_color_grid(n):
         for i in range(k):
             h = i / float(k)
             s = 0.7
-            rgb = mcolors.hls_to_rgb(h, l, s)
+            rgb = colorsys.hls_to_rgb(h, l, s)
             colors.append(rgb)
             if len(colors) >= n:
                 break
@@ -721,9 +722,13 @@ def main():
                 insert_images_to_slide(slides_service, presentation_id, image_urls, slide_title)
 
 
+        # Only keep participants with >5 WPM entries
+        filtered_wpm_by_participant = {name: wpm_list for name, wpm_list in all_wpm_by_participant.items() if len(wpm_list) > 5}
+        print(f"{len(filtered_wpm_by_participant)} participants spoke in >5 meetings and are included in the WPM analysis.")
+
         # Compute global per-participant WPM mean/CI and plot
         wpm_stats = {}
-        for name, wpm_list in all_wpm_by_participant.items():
+        for name, wpm_list in filtered_wpm_by_participant.items():
             arr = np.array(wpm_list)
             mean = arr.mean()
             n = len(arr)
