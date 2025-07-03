@@ -208,7 +208,7 @@ def per_participant_wpm(transcript_lines):
 
 
 def analyze_transcript_and_generate_images(transcript_text, baseprefix, override_date=None, color_dict=None):
-    os.makedirs("analysis", exist_ok=True)
+    os.makedirs("generated-files", exist_ok=True)
     lines = [l for l in transcript_text.split('\n') if l.strip()]
     date_ymd = override_date if override_date else datetime.datetime.now().strftime("%Y-%m-%d")
     meeting_title = baseprefix
@@ -303,7 +303,7 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     plt.ylabel("Number of Words Spoken")
     plt.xticks(rotation=45)
     plt.tight_layout()
-    fname1 = os.path.join("analysis", f"{date_ymd}_{baseprefix}_bar_chart_total_words_spoken.png")
+    fname1 = os.path.join("generated-files", f"{date_ymd}_{baseprefix}_bar_chart_total_words_spoken.png")
     plt.savefig(fname1, dpi=300)
     plt.close()
     images.append(fname1)
@@ -318,7 +318,7 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     if participants:
         plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
     plt.tight_layout()
-    fname2 = os.path.join("analysis", f"{date_ymd}_{baseprefix}_cumulative_words_spoken.png")
+    fname2 = os.path.join("generated-files", f"{date_ymd}_{baseprefix}_cumulative_words_spoken.png")
     plt.savefig(fname2, dpi=300)
     plt.close()
     images.append(fname2)
@@ -483,14 +483,17 @@ def main():
                 date_ymd = datetime.datetime.now().strftime("%Y-%m-%d")
             images, _, meeting_title, total_words, transcript_lines = analyze_transcript_and_generate_images(
                 transcript_text, baseprefix, override_date=date_ymd, color_dict=color_dict)
-            # Per-participant WPM for this meeting
             meeting_wpm = per_participant_wpm(transcript_lines)
+            if not meeting_wpm:
+                print(f"Transcript in {att.get('title')} is missing enough timestamps for WPM analysis, skipping meeting.")
+                continue  # Skip this meeting entirely
             for name, wpm in meeting_wpm.items():
                 all_wpm_by_participant[name].append(wpm)
             image_urls = [upload_image_to_drive_and_get_url(drive_service, img) for img in images]
             slide_title = f"{date_ymd} – {meeting_title}"
             if image_urls:
                 insert_images_to_slide(slides_service, presentation_id, image_urls, slide_title)
+
 
         # Compute global per-participant WPM mean/CI and plot
         wpm_stats = {}
@@ -518,7 +521,7 @@ def main():
             plt.xticks(rotation=30, fontsize=16)
             plt.yticks(fontsize=16)
             plt.tight_layout()
-            meta_bar_file = os.path.join("analysis", "global_participant_wpm_bar.png")
+            meta_bar_file = os.path.join("generated-files", "global_participant_wpm_bar.png")
             plt.savefig(meta_bar_file, dpi=300)
             plt.close()
             # Upload and insert as slide
