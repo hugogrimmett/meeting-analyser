@@ -1,0 +1,320 @@
+import os
+import sys
+import pickle
+import tempfile
+import io
+import re
+import datetime
+from collections import Counter, defaultdict
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.http import MediaFileUpload
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+
+CREDENTIALS_FILE = 'credentials.json'
+TOKEN_FILE = 'token.pickle'
+SCOPES = [
+    'https://www.googleapis.com/auth/presentations',
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/calendar.readonly',
+    'https://www.googleapis.com/auth/spreadsheets.readonly'
+]
+
+def check_and_help_credentials():
+    if os.path.exists(CREDENTIALS_FILE):
+        return True
+    print(f"\nERROR: '{CREDENTIALS_FILE}' not found in the current directory.\n")
+    print("To use this script, you need OAuth 2.0 credentials from Google Cloud.")
+    print("\nHow to get them:")
+    print("1. Go to https://console.cloud.google.com/apis/credentials")
+    print("2. Make sure you're in your project (or create a new one).")
+    print("3. Click 'Create Credentials' > 'OAuth client ID'.")
+    print("4. Choose 'Desktop app' and name it.")
+    print("5. Click 'Create', then 'Download JSON'.")
+    print("6. Rename the downloaded file to 'credentials.json' and put it in this directory.")
+    print("\nOnce you have 'credentials.json', re-run this script.")
+    sys.exit(1)
+
+def get_google_services():
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'rb') as token:
+            creds = pickle.load(token)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                CREDENTIALS_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open(TOKEN_FILE, 'wb') as token:
+            pickle.dump(creds, token)
+    calendar_service = build('calendar', 'v3', credentials=creds)
+    drive_service = build('drive', 'v3', credentials=creds)
+    slides_service = build('slides', 'v1', credentials=creds)
+    sheets_service = build('sheets', 'v4', credentials=creds)
+    return calendar_service, drive_service, slides_service, sheets_service
+
+def find_meetings_with_gemini_notes(calendar_service):
+    events = []
+    now = datetime.datetime.utcnow().isoformat() + 'Z'
+    print('Getting upcoming 50 events...')
+    events_result = calendar_service.events().list(
+        calendarId='primary', timeMin=now, maxResults=50, singleEvents=True,
+        orderBy='startTime').execute()
+    for event in events_result.get('items', []):
+        attachments = event.get('attachments', [])
+        for att in attachments:
+            if 'gemini' in att.get('title', '').lower():
+                events.append({'event': event, 'attachment': att})
+    return events
+
+def get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id):
+    file_metadata = drive_service.files().get(fileId=file_id, fields="mimeType, name").execute()
+    print("DEBUG: File metadata:", file_metadata)
+    if file_metadata['mimeType'] == 'application/vnd.google-apps.spreadsheet':
+        # ... (sheet logic as before) ...
+        pass
+    elif file_metadata['mimeType'] == 'application/vnd.google-apps.document':
+        # Export Google Doc as plain text
+        try:
+            doc_content = drive_service.files().export(fileId=file_id, mimeType='text/plain').execute()
+            text = doc_content.decode('utf-8') if isinstance(doc_content, bytes) else doc_content
+            print("DEBUG: Got Google Doc text, first 200 chars:", text[:200])
+            # Try to find transcript-like section
+            # If you want: parse only the "Transcript" section if the doc is structured
+            return text
+        except Exception as e:
+            print("DEBUG: Error fetching Google Doc content:", e)
+            return None
+    else:
+        print("DEBUG: File is not a Google Sheet or Doc. MIME type is:", file_metadata['mimeType'])
+    return None
+
+
+# --- WORDS-SPOKEN ANALYSIS CODE (as provided, minor tweaks for input flexibility) ---
+def analyze_transcript_and_generate_images(transcript_text, temp_dir, baseprefix):
+    os.makedirs("analysis", exist_ok=True)
+    lines = [l for l in transcript_text.split('\n') if l.strip()]
+    # Attempt to parse out a meeting date and title, if present (Gemini notes may differ)
+    date_ymd = datetime.datetime.now().strftime("%Y-%m-%d")
+    meeting_title = baseprefix
+    if lines and re.match(r'^[A-Za-z]{3} \d{1,2}, \d{4}', lines[0]):
+        date_line = lines[0].strip()
+        date_match = re.search(r'([A-Za-z]{3}) (\d{1,2}), (\d{4})', date_line)
+        if date_match:
+            month_str, day_str, year_str = date_match.groups()
+            try:
+                date_obj = datetime.datetime.strptime(f"{month_str} {day_str} {year_str}", "%b %d %Y")
+                date_ymd = date_obj.strftime("%Y-%m-%d")
+            except:
+                pass
+        meeting_title = lines[1].strip() if len(lines) > 1 else baseprefix
+        body_lines = lines[2:]
+    else:
+        body_lines = lines
+
+    # Find transcript start, skip preamble
+    start_index = next((i for i, line in enumerate(body_lines) if '00:00:00' in line), None)
+    if start_index is not None:
+        transcript_lines = body_lines[start_index:]
+    else:
+        transcript_lines = body_lines
+
+    # Parse transcript into speaker turns (list of (speaker, utterance) tuples)
+    speaker_turns = []
+    current_speaker = None
+    current_utterance = []
+
+    for line in transcript_lines:
+        speaker_match = re.match(r"^([A-Za-z .'-]+):(.*)$", line)
+        if speaker_match:
+            # Save the previous speaker's utterance, if any
+            if current_speaker is not None:
+                joined = ' '.join(current_utterance).strip()
+                if joined:
+                    speaker_turns.append((current_speaker, joined))
+            current_speaker = speaker_match.group(1).strip()
+            current_utterance = [speaker_match.group(2).strip()]
+        else:
+            if current_speaker is not None:
+                current_utterance.append(line.strip())
+
+    # Append the last speaker's turn, if any
+    if current_speaker is not None and current_utterance:
+        joined = ' '.join(current_utterance).strip()
+        if joined:
+            speaker_turns.append((current_speaker, joined))
+
+    if not speaker_turns:
+        print("No speaker turns found after 00:00:00. Skipping.")
+        return []
+
+    # 4. Count words spoken per participant
+    def count_words(text):
+        return len(re.findall(r'\b\w+\b', text))
+
+    word_counts = Counter()
+    cumulative_word_counts = defaultdict(list)
+    running_totals = Counter()
+    ordered_speakers = []
+
+    for speaker, utterance in speaker_turns:
+        words = count_words(utterance)
+        word_counts[speaker] += words
+        running_totals[speaker] += words
+        ordered_speakers.append(speaker)
+        # For cumulative plot, snapshot all participant totals at each turn
+        for p in word_counts:
+            cumulative_word_counts[p].append(running_totals[p])
+
+    participants = list(word_counts.keys())
+
+    images = []
+
+    # Bar Chart: Total Words Spoken
+    plt.figure(figsize=(10, 6))
+    sorted_word_counts = dict(word_counts.most_common())
+    plt.bar(sorted_word_counts.keys(), sorted_word_counts.values())
+    plt.title(meeting_title + " – Total Words Spoken")
+    plt.xlabel("Participant")
+    plt.ylabel("Number of Words Spoken")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    fname1 = os.path.join("analysis", f"{date_ymd}_{baseprefix}_bar_chart_total_words_spoken.png")
+    plt.savefig(fname1, dpi=300)
+    plt.close()
+    images.append(fname1)
+
+    # Cumulative Word Count Plot
+    plt.figure(figsize=(12, 6))
+    for name in participants:
+        plt.plot(cumulative_word_counts[name], label=name)
+    plt.title(meeting_title + " – Cumulative Words Spoken")
+    plt.xlabel("Turn Number")
+    plt.ylabel("Cumulative Words Spoken")
+    if participants:
+        plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+    plt.tight_layout()
+    fname2 = os.path.join("analysis", f"{date_ymd}_{baseprefix}_cumulative_words_spoken.png")
+    plt.savefig(fname2, dpi=300)
+    plt.close()
+    images.append(fname2)
+
+    print("Plots saved using basename:", f"{date_ymd}_{baseprefix}")
+    return images
+
+# --- UPLOAD IMAGE TO DRIVE, RETURN PUBLIC URL ---
+def upload_image_to_drive_and_get_url(drive_service, image_path):
+    file_metadata = {
+        'name': os.path.basename(image_path),
+        'mimeType': 'image/png'
+    }
+    media = MediaFileUpload(image_path, mimetype='image/png')
+    uploaded = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+    file_id = uploaded.get('id')
+    # Make public
+    drive_service.permissions().create(
+        fileId=file_id,
+        body={'type': 'anyone', 'role': 'reader'},
+        fields='id'
+    ).execute()
+    # Get public link
+    public_url = f"https://drive.google.com/uc?id={file_id}"
+    return public_url
+
+# --- INSERT IMAGES (by public URL) INTO SLIDES ---
+def insert_images_to_slide(slides_service, presentation_id, image_urls, event_title):
+    # Add blank slide
+    create_slide_req = [{
+        "createSlide": {
+            "slideLayoutReference": {
+                "predefinedLayout": "BLANK"
+            }
+        }
+    }]
+    slide_resp = slides_service.presentations().batchUpdate(
+        presentationId=presentation_id, body={"requests": create_slide_req}).execute()
+    new_slide_id = slide_resp['replies'][0]['createSlide']['objectId']
+    # Add a title
+    requests = [{
+        "createShape": {
+            "objectId": f"title_{new_slide_id}",
+            "shapeType": "TEXT_BOX",
+            "elementProperties": {
+                "pageObjectId": new_slide_id,
+                "size": {"height": {"magnitude": 60, "unit": "PT"}, "width": {"magnitude": 600, "unit": "PT"}},
+                "transform": {"scaleX": 1, "scaleY": 1, "translateX": 60, "translateY": 20, "unit": "PT"}
+            }
+        }
+    }, {
+        "insertText": {
+            "objectId": f"title_{new_slide_id}",
+            "insertionIndex": 0,
+            "text": event_title
+        }
+    }]
+    y = 100
+    for img_url in image_urls:
+        requests.append({
+            "createImage": {
+                "url": img_url,
+                "elementProperties": {
+                    "pageObjectId": new_slide_id,
+                    "size": {"height": {"magnitude": 230, "unit": "PT"}, "width": {"magnitude": 360, "unit": "PT"}},
+                    "transform": {"scaleX": 1, "scaleY": 1, "translateX": 60, "translateY": y, "unit": "PT"}
+                }
+            }
+        })
+        y += 260
+    slides_service.presentations().batchUpdate(
+        presentationId=presentation_id, body={"requests": requests}).execute()
+    print("Inserted images into slide", new_slide_id)
+
+def main():
+    check_and_help_credentials()
+    calendar_service, drive_service, slides_service, sheets_service = get_google_services()
+
+    # Create the presentation
+    presentation = slides_service.presentations().create(body={
+        'title': 'Automated Meeting Analysis Summary'
+    }).execute()
+    presentation_id = presentation.get('presentationId')
+    url = f"https://docs.google.com/presentation/d/{presentation_id}/edit"
+    print(f"\nCreated Slides: {url}")
+
+    # TEMP DIR for images
+    with tempfile.TemporaryDirectory() as temp_dir:
+        events = find_meetings_with_gemini_notes(calendar_service)
+        if not events:
+            print("No events with Gemini notes attachments found.")
+            return
+        for evt in events:
+            event = evt['event']
+            att = evt['attachment']
+            print(f"Processing event '{event.get('summary')}', file: {att.get('title')}")
+            file_id = att.get('fileId')
+            if not file_id:
+                print("Attachment missing fileId, skipping.")
+                continue
+            transcript_text = get_transcript_from_gemini_drive_file(drive_service, sheets_service, file_id)
+            if not transcript_text:
+                print(f"No transcript found in {att.get('title')}, skipping.")
+                continue
+            baseprefix = re.sub(r'\W+', '_', event.get('summary', 'meeting')).lower()
+            images = analyze_transcript_and_generate_images(transcript_text, temp_dir, baseprefix)
+            # Upload images and get public URLs
+            image_urls = []
+            for img in images:
+                url = upload_image_to_drive_and_get_url(drive_service, img)
+                image_urls.append(url)
+            if image_urls:
+                insert_images_to_slide(slides_service, presentation_id, image_urls, event.get('summary'))
+
+    print(f"\nAll done. View your slides at: {url}")
+
+if __name__ == "__main__":
+    main()
