@@ -13,6 +13,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.http import MediaFileUpload
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 
 CREDENTIALS_FILE = 'credentials.json'
 TOKEN_FILE = 'token.pickle'
@@ -33,9 +35,9 @@ def parse_date(s):
 def get_date_range_from_args_or_prompt():
     parser = argparse.ArgumentParser(description='Analyze Gemini meeting notes in calendar events.')
     parser.add_argument('--start', type=str, default=None,
-                        help="Start date (YYYY-MM-DD), default is today.")
+                        help="Start date (YYYY-MM-DD), default is 7 days ago.")
     parser.add_argument('--end', type=str, default=None,
-                        help="End date (YYYY-MM-DD), default is 7 days from start.")
+                        help="End date (YYYY-MM-DD), default is today.")
     args = parser.parse_args()
 
     if args.start:
@@ -48,8 +50,8 @@ def get_date_range_from_args_or_prompt():
     if args.end:
         end = parse_date(args.end)
     else:
-        end_str = input("Enter end date (YYYY-MM-DD, default +7 days): ").strip()
-        end = parse_date(end_str) if end_str else start + datetime.timedelta(days=7)
+        end_str = input("Enter end date (YYYY-MM-DD, default today): ").strip()
+        end = parse_date(end_str) if end_str else datetime.datetime.utcnow()
 
     if end <= start:
         print("End date must be after start date.")
@@ -133,7 +135,6 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     date_ymd = override_date if override_date else datetime.datetime.now().strftime("%Y-%m-%d")
     meeting_title = baseprefix
     if lines and re.match(r'^[A-Za-z]{3} \d{1,2}, \d{4}', lines[0]):
-        # ... keep existing date/title logic, but don't overwrite date_ymd if override_date was provided
         if not override_date:
             date_line = lines[0].strip()
             date_match = re.search(r'([A-Za-z]{3}) (\d{1,2}), (\d{4})', date_line)
@@ -200,10 +201,28 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     participants = list(word_counts.keys())
     images = []
 
+    # Consistent colors for each participant
+    color_map = plt.get_cmap('tab10')
+    color_list = [color_map(i % 10) for i in range(len(participants))]
+    color_dict = dict(zip(participants, color_list))
+
+    # Font sizes: increase all by 6pt
+    base_size = 14
+    mpl.rcParams.update({
+        'axes.titlesize': base_size + 6,
+        'axes.labelsize': base_size + 4,
+        'xtick.labelsize': base_size + 2,
+        'ytick.labelsize': base_size + 2,
+        'legend.fontsize': base_size + 2,
+        'figure.titlesize': base_size + 8
+    })
+
     # Bar Chart: Total Words Spoken
     plt.figure(figsize=(10, 6))
     sorted_word_counts = dict(word_counts.most_common())
-    plt.bar(sorted_word_counts.keys(), sorted_word_counts.values())
+    # Assign colors in order of sorted participants
+    bar_colors = [color_dict[p] for p in sorted_word_counts.keys()]
+    plt.bar(sorted_word_counts.keys(), sorted_word_counts.values(), color=bar_colors)
     plt.title(meeting_title + " – Total Words Spoken")
     plt.xlabel("Participant")
     plt.ylabel("Number of Words Spoken")
@@ -217,7 +236,7 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
     # Cumulative Word Count Plot
     plt.figure(figsize=(12, 6))
     for name in participants:
-        plt.plot(cumulative_word_counts[name], label=name)
+        plt.plot(cumulative_word_counts[name], label=name, color=color_dict[name], linewidth=2.5)
     plt.title(meeting_title + " – Cumulative Words Spoken")
     plt.xlabel("Turn Number")
     plt.ylabel("Cumulative Words Spoken")
@@ -231,6 +250,7 @@ def analyze_transcript_and_generate_images(transcript_text, baseprefix, override
 
     print("Plots saved using basename:", f"{date_ymd}_{baseprefix}")
     return images, date_ymd, meeting_title
+
 
 def upload_image_to_drive_and_get_url(drive_service, image_path):
     file_metadata = {
