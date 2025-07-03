@@ -1,8 +1,9 @@
-# Meeting Analyzer
+# Meeting Analyser
 
-Analyze Google Calendar meetings with Gemini notes, generate participation and communication graphs, and auto-create a Google Slides presentation of your results.
+Analyse Google Calendar meetings with Gemini notes, generate participation and communication graphs, and auto-create a Google Slides presentation of your results.
 
 Written by Hugo Grimmett
+
 July 2025
 
 ---
@@ -73,9 +74,9 @@ pipreqs . --force
 
 ---
 
-## 6. Run the analyzer
+## 6. Run the analyser
 
-You can run the analyzer interactively and it will prompt for a date range:
+You can run the analyser interactively and it will prompt for a date range:
 ```sh
 python3 calendar-gemini-to-slides.py
 ```
